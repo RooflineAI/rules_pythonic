@@ -1,7 +1,7 @@
 {
-  "homepage": "https://github.com/myorg/rules_mylang",
+  "homepage": "https://github.com/pythonicorg/rules_pythonic",
   "maintainers": [],
-  "repository": ["github:myorg/rules_mylang"],
+  "repository": ["github:pythonicorg/rules_pythonic"],
   "versions": [],
   "yanked_versions": {}
 }
