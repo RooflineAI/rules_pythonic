@@ -1,0 +1,8 @@
+numpy==2.4.2
+    # via
+    #   -r main/requirements-cpu.txt
+    #   scipy
+scipy==1.17.0
+    # via -r main/requirements-cpu.txt
+urllib3==2.6.3
+    # via -r main/requirements-cpu.txt

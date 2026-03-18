@@ -1,0 +1,16 @@
+[project]
+name = "old-model"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["numpy", "scipy"]
+
+[project.optional-dependencies]
+# Legacy uses cuda11 (proxy: older urllib3)
+cuda11 = ["urllib3<2.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/old_model"]

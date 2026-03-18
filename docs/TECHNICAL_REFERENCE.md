@@ -1,8 +1,8 @@
-# roof_py: Technical Reference
+# rules_pythonic: Technical Reference
 
 **Status:** Draft | **Authors:** [TBD] | **Last updated:** 2026-03-11
 
-This document provides the detailed evidence, benchmarks, implementation specifics, and worked examples behind the roof_py architecture. It is intended for engineers who want to understand *how* things work and *why* we're confident they work, beyond what the design overview covers.
+This document provides the detailed evidence, benchmarks, implementation specifics, and worked examples behind the rules_pythonic architecture. It is intended for engineers who want to understand *how* things work and *why* we're confident they work, beyond what the design overview covers.
 
 ---
 
@@ -13,8 +13,8 @@ This document provides the detailed evidence, benchmarks, implementation specifi
 - [Hardlink Experiments](#hardlink-experiments) — filesystem boundary validation
 - [Conftest Discovery](#conftestpy-discovery-in-the-sandbox) — full implementation and derisking
 - [Monorepo Scaling Patterns](#monorepo-scaling-patterns) — 5 patterns with complete config examples
-- [roof_py_files](#roof_py_files) — importable non-package files
-- [install_venv.py](#install_venvpy) — full build-time helper implementation
+- [pythonic_files](#pythonic_files) — importable non-package files
+- [install_packages.py](#install_venvpy) — full build-time helper implementation
 - [Test Runner](#test-runner-pytest) — pytest bridge and escape hatches
 - [Launcher Template](#launcher-template) — full template with commentary
 - [Existing Ecosystem Audit](#existing-ecosystem-audit) — detailed code audit findings
@@ -28,7 +28,7 @@ This document provides the detailed evidence, benchmarks, implementation specifi
 
 ### macOS ARM (APFS, Python 3.11.10, uv 0.9.22, torch 2.10.0)
 
-End-to-end prototype simulating the full roof_py flow: `install_venv.py` creates a venv with `uv pip install --link-mode=hardlink`, then a test launcher uses the toolchain Python with `PYTHONPATH` pointing at first-party source roots + the venv's `site-packages/`.
+End-to-end prototype simulating the full rules_pythonic flow: `install_packages.py` installs wheels into a flat directory with `uv pip install --target --link-mode=hardlink`, then a test launcher uses the toolchain Python with `PYTHONPATH` pointing at first-party source roots + the installed packages directory.
 
 **Performance (torch + numpy + pytest + 17 transitive deps):**
 
@@ -107,7 +107,7 @@ Real projects have 5-10 source roots + 1 site-packages = ~200us per fresh import
 - `uv pip install -e .` creates `.dist-info` in site-packages (0.44s)
 - `importlib.metadata.version("mypkg")` via PYTHONPATH: works
 - Editable `.pth` file: NOT processed by PYTHONPATH (expected — only `site.addsitedir()` processes `.pth` files)
-- roof_py scenario (src_root + site-packages on PYTHONPATH): works — source imported via src_root, metadata found via `.dist-info`
+- rules_pythonic scenario (src_root + site-packages on PYTHONPATH): works — source imported via src_root, metadata found via `.dist-info`
 
 **Extras groups (Python 3.14):**
 
@@ -120,7 +120,7 @@ Real projects have 5-10 source roots + 1 site-packages = ~200us per fresh import
 
 ## Linux CUDA Benchmark
 
-**Purpose:** Determine whether the single-TreeArtifact venv design works at CUDA scale (feared 50-100K files, 2-5 GB), or whether the architecture needs a split-venv variant.
+**Purpose:** Determine whether the single-TreeArtifact design works at CUDA scale (feared 50-100K files, 2-5 GB), or whether the architecture needs a split variant.
 
 **Environment:** Linux overlay fs, Python 3.11, uv 0.10.3, torch 2.10.0+cu128
 
@@ -231,10 +231,10 @@ Simulated CI environment with 3 test targets sharing identical deps, uv cache co
 
 **Conclusion:** Hardlinks are working: nlink values increase with each venv (2→3→4), total disk 0.28 GB instead of 0.70 GB (60% savings). With CUDA torch at 7.42 GB per venv, this is the difference between 5 venvs costing ~7.5 GB total vs ~37 GB.
 
-### Mitigation in roof_py
+### Mitigation in rules_pythonic
 
 1. `UV_CACHE_DIR` and `sandbox_writable_path` must point to the same filesystem as Bazel's output base (NOT `/tmp`)
-2. `install_venv.py` verifies `nlink > 1` on a sample file after install and fails with an actionable error if hardlinks didn't work
+2. `install_packages.py` verifies `nlink > 1` on a sample file after install and fails with an actionable error if hardlinks didn't work
 
 ---
 
@@ -264,10 +264,10 @@ Without intervention, `test_compiler` only sees conftest files at the package le
 
 ### Solution: three parts
 
-**Part 1: The runner always sets `--rootdir`.** `_roof_pytest_runner.py` passes `--rootdir` pointing at the repo root in runfiles. This anchors pytest's conftest discovery deterministically — from the repo root down to the test file, every conftest.py at every level gets discovered.
+**Part 1: The runner always sets `--rootdir`.** `pythonic_pytest_runner.py` passes `--rootdir` pointing at the repo root in runfiles. This anchors pytest's conftest discovery deterministically — from the repo root down to the test file, every conftest.py at every level gets discovered.
 
 ```python
-# _roof_pytest_runner.py (relevant addition)
+# pythonic_pytest_runner.py (relevant addition)
 import os
 
 runfiles_dir = os.environ.get("RUNFILES_DIR", "")
@@ -306,10 +306,10 @@ filegroup(
 
 Each level knows its parent. Adding a new intermediate level only touches one BUILD file. The chain mirrors pytest's own walk-up model — a child inherits from its parents.
 
-**Part 3: Auto-discovery in the `roof_py_test` macro.** The macro checks if `:pytest_root` exists in the current package and uses it automatically:
+**Part 3: Auto-discovery in the `pythonic_test` macro.** The macro checks if `:pytest_root` exists in the current package and uses it automatically:
 
 ```starlark
-def roof_py_test(name, srcs, deps, pytest_root = None, **kwargs):
+def pythonic_test(name, srcs, deps, pytest_root = None, **kwargs):
     if pytest_root == None:
         if native.existing_rule("pytest_root"):
             pytest_root = ":pytest_root"
@@ -318,7 +318,7 @@ def roof_py_test(name, srcs, deps, pytest_root = None, **kwargs):
     if pytest_root:
         data.append(pytest_root)
 
-    _roof_py_test_rule(
+    _pythonic_test_rule(
         name = name, srcs = srcs, deps = deps, data = data, **kwargs
     )
 ```
@@ -421,9 +421,9 @@ use_repo(pip, "pypi")
 **BUILD files:**
 
 ```starlark
-load("@roof//python:defs.bzl", "roof_py_package", "roof_py_test")
+load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package", "pythonic_test")
 
-roof_py_package(
+pythonic_package(
     name = "attic",
     pyproject = "pyproject.toml",
     src_root = "src",
@@ -431,7 +431,7 @@ roof_py_package(
     deps = ["//packages/attic-rt:attic-rt"],
 )
 
-[roof_py_test(
+[pythonic_test(
     name = src.removesuffix(".py"),
     srcs = [src],
     deps = [":attic"],
@@ -544,7 +544,7 @@ The `[project]` stub is required — uv workspace members must have a `[project]
 
 ```starlark
 # integration-tests/tests/BUILD.bazel
-roof_py_test(
+pythonic_test(
     name = "test_load",
     srcs = ["test_load.py"],
     pyproject = "//integration-tests:pyproject.toml",
@@ -552,7 +552,7 @@ roof_py_test(
 )
 ```
 
-The test target's `pyproject` attribute adds locust and moto to the venv alongside the package's deps. `install_venv.py` unions all pyproject.toml files.
+The test target's `pyproject` attribute adds locust and moto to the venv alongside the package's deps. `install_packages.py` unions all pyproject.toml files.
 
 ### Pattern 4: Multiple products, incompatible dependencies
 
@@ -584,7 +584,7 @@ use_repo(pip, "pypi", "pypi_legacy")
 Legacy targets specify the legacy wheel pool:
 
 ```starlark
-roof_py_test(
+pythonic_test(
     name = "test_pipeline",
     srcs = glob(["tests/test_*.py"]),
     deps = [":pipeline"],
@@ -595,8 +595,8 @@ roof_py_test(
 Shared libraries tested against both resolves:
 
 ```starlark
-roof_py_test(name = "test_core", srcs = [...], deps = [":core"])
-roof_py_test(name = "test_core_legacy", srcs = [...], deps = [":core"], pypi = "@pypi_legacy")
+pythonic_test(name = "test_core", srcs = [...], deps = [":core"])
+pythonic_test(name = "test_core_legacy", srcs = [...], deps = [":core"], pypi = "@pypi_legacy")
 ```
 
 ### Pattern 5: Combined (variants + multiple products)
@@ -648,24 +648,24 @@ pip.parse() + pip.default() (MODULE.bazel — maps files to platforms)
 @pypi hub repo (select() picks right wheel per config)
     |
     v
-_roof_py_venv (receives wheels, builds venv — platform-unaware)
+PythonicInstall action (receives wheels, installs packages — platform-unaware)
     |
     v
-install_venv.py (matches pyproject.toml names against wheels — platform-unaware)
+install_packages.py (matches pyproject.toml names against wheels — platform-unaware)
 ```
 
-roof_py itself is the same in every pattern. The complexity lives in the resolution layer (uv) and the platform layer (pip.parse + pip.default).
+rules_pythonic itself is the same in every pattern. The complexity lives in the resolution layer (uv) and the platform layer (pip.parse + pip.default).
 
 ---
 
-## roof_py_files
+## pythonic_files
 
 For importable code that isn't a package — shared test utilities, config modules, generated protobuf stubs, compiled extension wrappers. These have no `pyproject.toml`, no version, no third-party deps, and will never be published as a wheel.
 
 ### API
 
 ```starlark
-roof_py_files(
+pythonic_files(
     name,
     srcs,          # label_list(allow_files = True) — any file type
     src_root,      # string — directory added to PYTHONPATH
@@ -674,14 +674,14 @@ roof_py_files(
 )
 ```
 
-Returns `RoofPyPackageInfo` with `pyproject = None` and `wheel = None`. Downstream rules consume it identically to a package — the `src_root` goes on PYTHONPATH, the `srcs` go into runfiles.
+Returns `PythonicPackageInfo` with `pyproject = None` and `wheel = None`. Downstream rules consume it identically to a package — the `src_root` goes on PYTHONPATH, the `srcs` go into runfiles.
 
 ### Key properties
 
 - **No `deps`.** Leaf node only. The consuming package owns the dependency graph.
 - **No file type filter.** Python packages contain `.py`, `.so`, `.pyi`, `.json`. User controls inclusion via `glob()`.
 - **No `.wheel` target.** Never builds wheels.
-- **Upgrade path:** Add a 3-line `pyproject.toml` and switch to `roof_py_package`. Code with dependencies is a package.
+- **Upgrade path:** Add a 3-line `pyproject.toml` and switch to `pythonic_package`. Code with dependencies is a package.
 
 ### Use cases
 
@@ -689,30 +689,30 @@ Returns `RoofPyPackageInfo` with `pyproject = None` and `wheel = None`. Downstre
 
 ```starlark
 # lib/testing/BUILD.bazel
-roof_py_files(name = "testing", srcs = glob(["**/*.py"]), src_root = ".", visibility = ["//visibility:public"])
+pythonic_files(name = "testing", srcs = glob(["**/*.py"]), src_root = ".", visibility = ["//visibility:public"])
 
 # packages/attic/BUILD.bazel
-roof_py_test(name = "test_compiler", srcs = [...], deps = [":attic", "//lib/testing"])
+pythonic_test(name = "test_compiler", srcs = [...], deps = [":attic", "//lib/testing"])
 ```
 
 **Compiled extension with wrapper:**
 
 ```starlark
 cc_binary(name = "_native.so", srcs = ["native.cc"], linkshared = True)
-roof_py_files(name = "bindings", srcs = ["wrapper.py", ":_native.so"], src_root = ".")
+pythonic_files(name = "bindings", srcs = ["wrapper.py", ":_native.so"], src_root = ".")
 ```
 
 **Generated protobuf code:**
 
 ```starlark
 py_proto_library(name = "myservice_py_proto", deps = [":myservice_proto"])
-roof_py_files(name = "myservice_py", srcs = [":myservice_py_proto"], src_root = ".")
+pythonic_files(name = "myservice_py", srcs = [":myservice_py_proto"], src_root = ".")
 ```
 
 ### Implementation (~20 lines Starlark)
 
 ```starlark
-def _roof_py_files_impl(ctx):
+def _pythonic_files_impl(ctx):
     if ".." in ctx.attr.src_root:
         fail("src_root must not contain '..' — use a BUILD file in the parent directory instead")
 
@@ -723,7 +723,7 @@ def _roof_py_files_impl(ctx):
     srcs_depset = depset(ctx.files.srcs)
 
     return [
-        RoofPyPackageInfo(
+        PythonicPackageInfo(
             src_root = full_src_root,
             srcs = srcs_depset,
             pyproject = None,
@@ -739,19 +739,21 @@ def _roof_py_files_impl(ctx):
 
 ### Provider impact
 
-One field type change to `RoofPyPackageInfo`:
+One field type change to `PythonicPackageInfo`:
 
 ```starlark
-"pyproject": "File or None: the pyproject.toml file (None for roof_py_files targets)",
+"pyproject": "File or None: the pyproject.toml file (None for pythonic_files targets)",
 ```
 
-Downstream code paths that touch `pyproject` need an `if info.pyproject:` guard. `install_venv.py` requires no change (filtered upstream in Starlark).
+Downstream code paths that touch `pyproject` need an `if info.pyproject:` guard. `install_packages.py` requires no change (filtered upstream in Starlark).
 
 ---
 
-## install_venv.py
+## install_packages.py
 
-Full build-time helper (~80 lines of Python stdlib). Receives pyproject.toml files + wheel directory + flags from Starlark, produces a cached venv TreeArtifact.
+Full build-time helper (~80 lines of Python stdlib). Receives pyproject.toml files + wheel paths + flags from Starlark, installs all wheels into a flat target directory as a cached TreeArtifact.
+
+> **Note:** The prototype code below used `uv venv` + `uv pip install --python`. The actual implementation uses `uv pip install --target` to produce a flat directory without a venv, avoiding dangling symlinks that Bazel's TreeArtifact validation rejects. See `pythonic/private/install_packages.py` for the current implementation.
 
 ```python
 #!/usr/bin/env python3
@@ -841,7 +843,7 @@ if wheels_to_install:
 The default and only built-in test runner. A ~25-line Python bridge translates Bazel environment variables to pytest arguments:
 
 ```python
-# _roof_pytest_runner.py
+# pythonic_pytest_runner.py
 import os, sys
 
 def main():
@@ -886,10 +888,10 @@ if __name__ == "__main__":
 
 ```starlark
 # File-based: full control via a Python script
-roof_py_test(name = "test_distributed", main = "tests/run_distributed.py", ...)
+pythonic_test(name = "test_distributed", main = "tests/run_distributed.py", ...)
 
 # Module-based: python -m sets __package__ correctly for relative imports
-roof_py_test(name = "test_distributed", main_module = "torch.distributed.run", ...)
+pythonic_test(name = "test_distributed", main_module = "torch.distributed.run", ...)
 ```
 
 ---
@@ -898,23 +900,18 @@ roof_py_test(name = "test_distributed", main_module = "torch.distributed.run", .
 
 ```bash
 #!/usr/bin/env bash
-# roof_run.tmpl.sh — environment setup only, no test driver logic
+# pythonic_run.tmpl.sh — launcher for rules_pythonic test and binary targets
 
-{{BASH_RLOCATION_FN}}
-runfiles_export_envvars
+# (runfiles resolution boilerplate omitted — see pythonic/private/pythonic_run.tmpl.sh)
 set -o errexit -o nounset -o pipefail
 
 PYTHON="$(rlocation {{PYTHON_TOOLCHAIN}})"
-VENV_DIR="$(rlocation {{VENV_DIR}})"
-SITE_PACKAGES="${VENV_DIR}/lib/python{{PYTHON_VERSION}}/site-packages"
+PACKAGES_DIR="$(rlocation {{PACKAGES_DIR}})"
 
-export PATH="${VENV_DIR}/bin:${PATH}"
-export PYTHONPATH="{{FIRST_PARTY_PYTHONPATH}}:${SITE_PACKAGES}"
+export PYTHONPATH="{{FIRST_PARTY_PYTHONPATH}}:${PACKAGES_DIR}"
 
 {{PYTHON_ENV}}
 
-# -B: no .pyc    -s: no user site-packages
-hash -r 2>/dev/null
 exec "${PYTHON}" -B -s {{INTERPRETER_ARGS}} {{EXEC_CMD}} "$@"
 ```
 
@@ -923,7 +920,7 @@ exec "${PYTHON}" -B -s {{INTERPRETER_ARGS}} {{EXEC_CMD}} "$@"
 - **`main = file.py`:** `"$(rlocation .../file.py)"`
 - **`main_module = "attic.serve"`:** `-m attic.serve`
 
-**Why the venv's python symlink is broken and doesn't matter:** `uv venv` creates `bin/python3` as a symlink to the Python used during the build action. In Bazel's sandbox, that's an ephemeral path. The launcher uses the toolchain Python directly. The broken symlink exists but is never called.
+**Why no venv:** The original design used `uv venv` + `uv pip install --python`, but `uv venv` creates a `bin/python3` symlink to the build-time interpreter path, which is ephemeral in Bazel's sandbox. Bazel's TreeArtifact validation rejects dangling symlinks. Using `uv pip install --target` instead produces a flat directory of packages with no bin/ or symlinks — simpler and avoids the problem entirely.
 
 ---
 
@@ -968,7 +965,7 @@ All risks were prototyped or benchmarked. None remain as blockers.
 | Risk | Severity | Status | Resolution |
 |---|---|---|---|
 | TreeArtifact at CUDA scale (50-100K files feared) | High | **Verified** | 18K files, all ops < 5s. Feared file explosion didn't materialize. |
-| Hardlink cross-device silent fallback | Medium | **Mitigated** | Same-fs requirement + nlink check in install_venv.py. |
+| Hardlink cross-device silent fallback | Medium | **Mitigated** | Same-fs requirement + nlink check in install_packages.py. |
 | Remote cache size | Medium | **Measured** | Zstd 3.47 GB per venv. ~5-10 unique venvs limits blast radius. |
 | VERSION file escaping sandbox | Medium | **Resolved** | setuptools rejects `../../VERSION`. Fix: copy VERSION locally. |
 | nvidia namespace at CUDA scale | Medium | **Verified** | All 10 subpackages import correctly. Zero code needed. |
@@ -994,7 +991,7 @@ All risks were prototyped or benchmarked. None remain as blockers.
 
 22 questions were resolved via prototyping and benchmarking before the design was finalized. Key resolutions:
 
-1. **Compiled extensions:** No special handling. `roof_py_package` accepts compiled artifacts via `data`. Assembly uses `copy_to_directory`.
+1. **Compiled extensions:** No special handling. `pythonic_package` accepts compiled artifacts via `data`. Assembly uses `copy_to_directory`.
 
 2. **Exact cache keys:** Deferred. Conservative key (all wheels) is fine — rebuild is 1.7s with warm cache. Per-package keys possible via ~50-line Starlark TOML parser if needed.
 
@@ -1014,7 +1011,7 @@ All risks were prototyped or benchmarked. None remain as blockers.
 
 10. **Mutual exclusion migration:** Design decision. `constraint_setting` prevents hybrid states. CI runs both platforms.
 
-11. **First-party deps in install_venv.py:** Three-way classification works. Name normalization handles all edge cases.
+11. **First-party deps in install_packages.py:** Three-way classification works. Name normalization handles all edge cases.
 
 12. **Wheel build in sandbox:** `uv build --wheel` follows symlinks. `../../VERSION` blocked by setuptools — fix: copy locally.
 
@@ -1034,7 +1031,7 @@ All risks were prototyped or benchmarked. None remain as blockers.
 
 20. **Split-venv not needed:** torch is 25% of bytes, nvidia is 62%. Marginal benefit vs complexity.
 
-21. **Hardlink same-fs requirement:** Verified across 4 scenarios. install_venv.py checks nlink.
+21. **Hardlink same-fs requirement:** Verified across 4 scenarios. install_packages.py checks nlink.
 
 22. **Multi-version Python:** Flag + select, ~35 lines total. All components are proven Bazel mechanisms.
 
@@ -1044,7 +1041,7 @@ All risks were prototyped or benchmarked. None remain as blockers.
 
 ### vs aspect_rules_py (current)
 
-| Aspect | aspect_rules_py | roof_py |
+| Aspect | aspect_rules_py | rules_pythonic |
 |---|---|---|
 | Venv creation | Runtime, per test, ~87ms | Build time, cached, 0ms at test time |
 | Import mechanism | `.pth` files with `../../../../` escaping | PYTHONPATH |
@@ -1058,19 +1055,19 @@ All risks were prototyped or benchmarked. None remain as blockers.
 
 ### vs stock rules_python
 
-| Aspect | rules_python | roof_py |
+| Aspect | rules_python | rules_pythonic |
 |---|---|---|
 | Third-party packages | py_library wrappers with PyInfo | Wheel files, installed by uv |
 | Third-party deps | `@pypi//` in BUILD files | pyproject.toml only |
 | Import config | `PyInfo.imports` depsets | PYTHONPATH |
 | `.dist-info` | Not available | Available (real installation) |
 | Namespace packages | Broken (separate repos) | Works (flat site-packages) |
-| Multi-version Python | `python_version` attr + transitions | `--@roof//python:version` flag (tox model) |
+| Multi-version Python | `python_version` attr + transitions | `--@rules_pythonic//pythonic:version` flag (tox model) |
 | Dev environment | Separate tooling needed | Standard uv workflow |
 
 ### vs Pants
 
-| Aspect | Pants | roof_py |
+| Aspect | Pants | rules_pythonic |
 |---|---|---|
 | Python support | First-class, Pythonic | Bolt-on to Bazel, but Pythonic |
 | C++/MLIR support | Limited | Full (Bazel native) |

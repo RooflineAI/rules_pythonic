@@ -1,0 +1,8 @@
+[project]
+name = "attic"
+dependencies = [
+    "Attic-RT",
+    "my.dotted.pkg",
+    "pkg-with-extras[gpu,cuda]>=2.0",
+    "conditional-pkg; python_version >= '3.11'",
+]

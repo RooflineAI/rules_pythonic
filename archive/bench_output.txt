@@ -1,0 +1,289 @@
+======================================================================
+roof_py Linux CUDA Venv Benchmark
+======================================================================
+Python:     3.14.2
+uv:         uv 0.10.3
+Platform:   Linux x86_64 (6.14.0-37-generic)
+Filesystem: overlay
+Work dir:   /tmp/roof_py_bench
+
+Cleaning previous run...
+Hardlinks:  supported
+
+----------------------------------------------------------------------
+BENCHMARK 1: Download CUDA torch + deps
+----------------------------------------------------------------------
+Downloading: torch, numpy, scipy, pytest
+Command: /home/maxbartel/.local/share/uv/python/cpython-3.11-linux-x86_64-gnu/bin/python3.11 -m pip download --extra-index-url https://download.pytorch.org/whl/cu124 -d /tmp/roof_py_bench/wheel_cache torch numpy scipy pytest
+Downloaded 34 wheels (4.18 GB)
+Download time: 17.4s
+
+----------------------------------------------------------------------
+BENCHMARK 2: Create venv + uv pip install (hardlink mode)
+----------------------------------------------------------------------
+uv venv creation: 25ms
+Install (hardlink): 4.30s
+Install (copy):     1.47s
+
+----------------------------------------------------------------------
+BENCHMARK 3: File statistics for installed venv
+----------------------------------------------------------------------
+Files:        18,192
+Directories:  1,311
+Apparent:     7.42 GB
+On-disk:      7.35 GB
+Hardlink ratio (sampled): 0.0%
+
+Top packages by size:
+  nvidia                                     4589.4 MB
+  torch                                      1757.2 MB
+  triton                                      669.0 MB
+  cuda                                        111.0 MB
+  scipy                                        82.6 MB
+  scipy.libs                                   30.9 MB
+  numpy                                        28.7 MB
+  numpy.libs                                   28.4 MB
+  sympy                                        26.6 MB
+  networkx                                      7.0 MB
+
+----------------------------------------------------------------------
+BENCHMARK 4: Full directory copy (simulates remote exec)
+----------------------------------------------------------------------
+cp -R:        3.72s
+rsync -a:     6.01s
+symlink:      0.04ms
+
+----------------------------------------------------------------------
+BENCHMARK 5: Tar + compress (simulates remote cache upload/download)
+----------------------------------------------------------------------
+tar create:   4.48s (7.36 GB)
+tar+zstd:     4.76s (3.47 GB)
+tar extract:  4.88s
+zstd extract: 5.52s
+
+----------------------------------------------------------------------
+BENCHMARK 6: Import performance via PYTHONPATH
+----------------------------------------------------------------------
+torch import: 1.348s
+numpy import: 0.0s
+metadata:     0.0s
+torch version:2.10.0+cu128
+CUDA avail:   False
+
+----------------------------------------------------------------------
+BENCHMARK 7: Incremental rebuild (warm uv cache)
+----------------------------------------------------------------------
+Rebuild (warm cache): 1.73s
+  venv create: 25ms
+  install:     1.70s
+
+----------------------------------------------------------------------
+BENCHMARK 8: Split-venv simulation (torch alone vs everything else)
+----------------------------------------------------------------------
+Torch-only venv:  11,804 files, 1.83 GB, 1.32s
+Rest venv:        6,406 files, 5.66 GB, 0.88s
+Combined install: 2.20s (vs single: 4.3s)
+
+
+Results written to /tmp/roof_py_bench/results.json
+
+--- BEGIN STRUCTURED OUTPUT ---
+{
+  "meta": {
+    "python_version": "3.14.2",
+    "uv_version": "uv 0.10.3",
+    "os": "Linux",
+    "arch": "x86_64",
+    "kernel": "6.14.0-37-generic",
+    "hostname": "pink-lark-15",
+    "filesystem": "overlay",
+    "hardlink_supported": true
+  },
+  "download": {
+    "packages": [
+      "torch",
+      "numpy",
+      "scipy",
+      "pytest"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 17.36,
+    "stderr_tail": "",
+    "wheel_count": 34,
+    "total_wheel_bytes": 4181116623,
+    "wheel_names": [
+      "networkx-3.6.1-py3-none-any.whl",
+      "filelock-3.24.2-py3-none-any.whl",
+      "cuda_pathfinder-1.3.4-py3-none-any.whl",
+      "torch-2.10.0-cp311-cp311-manylinux_2_28_x86_64.whl",
+      "nvidia_cuda_nvrtc_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl",
+      "nvidia_cusolver_cu12-11.7.3.90-py3-none-manylinux_2_27_x86_64.whl",
+      "nvidia_cuda_cupti_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "nvidia_nccl_cu12-2.27.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "pytest-9.0.2-py3-none-any.whl",
+      "scipy-1.17.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "pluggy-1.6.0-py3-none-any.whl",
+      "nvidia_nvshmem_cu12-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "packaging-26.0-py3-none-any.whl",
+      "nvidia_cuda_runtime_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "nvidia_cusparselt_cu12-0.7.1-py3-none-manylinux2014_x86_64.whl",
+      "cuda_bindings-12.9.4-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl",
+      "fsspec-2026.2.0-py3-none-any.whl",
+      "numpy-2.4.2-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "nvidia_cufft_cu12-11.3.3.83-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "nvidia_curand_cu12-10.3.9.90-py3-none-manylinux_2_27_x86_64.whl",
+      "nvidia_cufile_cu12-1.13.1.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "jinja2-3.1.6-py3-none-any.whl",
+      "triton-3.6.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "iniconfig-2.3.0-py3-none-any.whl",
+      "nvidia_nvtx_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "typing_extensions-4.15.0-py3-none-any.whl",
+      "pygments-2.19.2-py3-none-any.whl",
+      "sympy-1.14.0-py3-none-any.whl",
+      "nvidia_cudnn_cu12-9.10.2.21-py3-none-manylinux_2_27_x86_64.whl",
+      "nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl",
+      "nvidia_cusparse_cu12-12.5.8.93-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "nvidia_nvjitlink_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl",
+      "markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "mpmath-1.3.0-py3-none-any.whl"
+    ]
+  },
+  "venv_creation": {
+    "venv_create_ms": 25.0,
+    "install_hardlink_seconds": 4.3,
+    "install_hardlink_returncode": 0,
+    "install_copy_seconds": 1.47
+  },
+  "file_stats": {
+    "total_files": 18192,
+    "total_dirs": 1311,
+    "apparent_bytes": 7417430318,
+    "apparent_gb": 7.42,
+    "disk_bytes": 7346162368,
+    "disk_gb": 7.35,
+    "sampled_inodes": 16155,
+    "unique_inodes": 16155,
+    "hardlink_ratio": 0.0,
+    "sample_hardlinked_files": {},
+    "top_extensions_by_count": {
+      ".h": 9721,
+      ".py": 6565,
+      ".pyi": 325,
+      "(no ext)": 205,
+      ".so": 182,
+      ".mat": 110,
+      ".hpp": 109,
+      ".txt": 97,
+      ".cuh": 80,
+      ".json": 70
+    },
+    "top_extensions_by_bytes": {
+      ".so": 2325504110,
+      ".12": 1576379960,
+      ".9": 1053232960,
+      ".11": 685823936,
+      ".0": 469632023,
+      ".2": 429628328,
+      ".3": 164950072,
+      ".10": 136749240,
+      ".py": 114122553,
+      ".cpp": 87281944
+    },
+    "top_packages_by_bytes": {
+      "nvidia": 4589440281,
+      "torch": 1757186484,
+      "triton": 668970284,
+      "cuda": 111002557,
+      "scipy": 82638167,
+      "scipy.libs": 30877053,
+      "numpy": 28684528,
+      "numpy.libs": 28448619,
+      "sympy": 26601980,
+      "networkx": 6969744,
+      "pygments": 4452013,
+      "torchgen": 2067767,
+      "mpmath": 1932254,
+      "torch-2.10.0.dist-info": 1805006,
+      "_pytest": 1309777
+    }
+  },
+  "copy_performance": {
+    "cp_r_seconds": 3.72,
+    "rsync_seconds": 6.01,
+    "symlink_ms": 0.04
+  },
+  "symlink_performance": {},
+  "tar_performance": {
+    "tar_create_seconds": 4.48,
+    "tar_bytes": 7362928640,
+    "tar_gb": 7.36,
+    "zstd_create_seconds": 4.76,
+    "zstd_bytes": 3472306793,
+    "zstd_gb": 3.47,
+    "tar_extract_seconds": 4.88,
+    "zstd_extract_seconds": 5.52
+  },
+  "import_performance": {
+    "torch_import_seconds": 1.348,
+    "torch_version": "2.10.0+cu128",
+    "torch_cuda_available": false,
+    "torch_file": "/tmp/roof_py_bench/venv_a/lib/python3.11/site-packages/torch/__init__.py",
+    "numpy_import_seconds": 0.0,
+    "numpy_version": "2.4.2",
+    "torch_metadata_version": "2.10.0",
+    "metadata_seconds": 0.0,
+    "nvidia_namespace_exists": true,
+    "nvidia_path": [
+      "/tmp/roof_py_bench/venv_a/lib/python3.11/site-packages/nvidia"
+    ],
+    "nvidia_importable_subpackages": [
+      "cudnn",
+      "cublas",
+      "cuda_runtime",
+      "cuda_nvrtc",
+      "nvjitlink",
+      "cufft",
+      "cusparse",
+      "cusolver",
+      "nccl",
+      "nvtx"
+    ],
+    "ld_library_path": "(not set)",
+    "torch_lib_dir": "/tmp/roof_py_bench/venv_a/lib/python3.11/site-packages/torch/lib",
+    "torch_lib_so_count": 11,
+    "sys_path_length": 6,
+    "torch_file_is_real": true,
+    "torch_file_is_symlink": false
+  },
+  "incremental_rebuild": {
+    "venv_create_ms": 24.8,
+    "install_seconds": 1.7,
+    "total_seconds": 1.73,
+    "returncode": 0
+  },
+  "split_venv_simulation": {
+    "torch_venv": {
+      "wheel_count": 1,
+      "wheel_names": [
+        "torch-2.10.0-cp311-cp311-manylinux_2_28_x86_64.whl"
+      ],
+      "install_seconds": 1.32,
+      "files": 11804,
+      "bytes": 1832492510,
+      "gb": 1.83
+    },
+    "rest_venv": {
+      "wheel_count": 33,
+      "install_seconds": 0.88,
+      "files": 6406,
+      "bytes": 5656235890,
+      "gb": 5.66
+    }
+  }
+}
+--- END STRUCTURED OUTPUT ---
+======================================================================
+BENCHMARK COMPLETE
+Results written to: /tmp/roof_py_bench/results.json
+Total disk used: 73.8 GB
+======================================================================

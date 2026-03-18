@@ -1,0 +1,8 @@
+numpy==2.4.2
+    # via
+    #   -r requirements-variant-b.txt
+    #   scipy
+scipy==1.17.0
+    # via -r requirements-variant-b.txt
+urllib3==1.26.20
+    # via -r requirements-variant-b.txt

@@ -1,0 +1,17 @@
+[project]
+name = "trainer"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["numpy", "scipy"]
+
+[project.optional-dependencies]
+gpu = ["cupy-cuda12x"]
+test = ["pytest", "hypothesis"]
+dev = ["ruff", "mypy"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.backends"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/trainer"]

@@ -1,7 +1,24 @@
 bazel-*
 .bazelrc.user
+user.bazelrc
 .idea/
 .ijwb/
+
+# Generated venvs and site-packages in _derisk experiments
+_derisk/**/bench_venv*/
+_derisk/**/test_venv*/
+_derisk/**/venv_output/
+_derisk/broken_venv_test/
+_derisk/copied_site_packages/
+_derisk/first_party/
+_derisk/namespace_test/
+_derisk/simulated_runfiles/
+_derisk/test_venv/
+__pycache__/
+*.pyc
+*.whl
+*.egg-info/
+**/build/
 
 # Dolt database files (added by bd init)
 .dolt/

@@ -1,0 +1,11 @@
+[project]
+name = "pattern1-single-product"
+version = "0.1.0"
+description = "De-risk prototype: single product monorepo with shared dependencies"
+requires-python = ">=3.11"
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv]
+dev-dependencies = []
