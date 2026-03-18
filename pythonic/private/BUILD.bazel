@@ -1,1 +1,15 @@
-# Private implementation details for rules_pythonic
+exports_files(
+    [
+        "install_packages.py",
+        "pythonic_pytest_runner.py",
+        "pythonic_run.tmpl.sh",
+    ],
+    visibility = ["//pythonic:__subpackages__"],
+)
+
+# Public because consumers reference this from their MODULE.bazel
+# to set up the multitool hub for the uv binary.
+exports_files(
+    ["uv.lock.json"],
+    visibility = ["//visibility:public"],
+)
