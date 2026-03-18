@@ -33,6 +33,8 @@ module(
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "package_metadata", version = "0.0.6")
 bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_python", version = "1.9.0")
+bazel_dep(name = "rules_multitool", version = "0.11.0")
 
 bazel_dep(name = "gazelle", version = "0.47.0", dev_dependency = True, repo_name = "bazel_gazelle")
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.8.2", dev_dependency = True)
@@ -41,3 +43,19 @@ bazel_dep(name = "buildifier_prebuilt", version = "8.2.1", dev_dependency = True
 
 bazel_dep(name = "bazelrc-preset.bzl", version = "1.6.0")
 
+# Dev only — consumers set up their own Python toolchain and @pypi hub.
+python = use_extension("@rules_python//python/extensions:python.bzl", "python", dev_dependency = True)
+python.toolchain(python_version = "3.11")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip", dev_dependency = True)
+pip.parse(
+    hub_name = "pypi",
+    python_version = "3.11",
+    requirements_lock = "//:requirements.txt",
+)
+use_repo(pip, "pypi")
+
+# Shipped lockfile so consumers don't need to depend on rules_uv directly.
+multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitool")
+multitool.hub(lockfile = "//pythonic/private:uv.lock.json")
+use_repo(multitool, "multitool")
