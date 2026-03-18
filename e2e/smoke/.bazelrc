@@ -1,0 +1,4 @@
+# Allow uv to access its cache from within the sandbox.
+# Must be on the same filesystem as Bazel's output base for hardlinks to work.
+# Users should set this in their user.bazelrc with their actual home path.
+try-import %workspace%/user.bazelrc

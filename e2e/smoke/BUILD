@@ -1,16 +1,7 @@
-"""Provides a simple way to test your rules as an external workspace.
-Add a basic smoke-test target below.
-"""
+load("@pypi//:requirements.bzl", "all_whl_requirements")
 
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
-
-# Replace with a usage of your rule/macro
-filegroup(name = "empty")
-
-build_test(
-    name = "smoke_test",
-    targets = [
-        # targets you add above
-        ":empty",
-    ],
+filegroup(
+    name = "all_wheels",
+    srcs = all_whl_requirements,
+    visibility = ["//visibility:public"],
 )

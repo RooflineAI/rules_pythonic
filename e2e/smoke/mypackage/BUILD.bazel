@@ -1,0 +1,14 @@
+load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package", "pythonic_test")
+
+pythonic_package(
+    name = "mypackage",
+    pyproject = "pyproject.toml",
+    src_root = "src",
+    srcs = glob(["src/**/*.py"]),
+)
+
+pythonic_test(
+    name = "test_greeting",
+    srcs = ["tests/test_greeting.py"],
+    deps = [":mypackage"],
+)
