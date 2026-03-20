@@ -2,6 +2,7 @@
 
 module(
     name = "rules_pythonic",
+    bazel_compatibility = [">=8.0.0"],
 
     # NOTE:
     # version = "",

@@ -2,7 +2,12 @@
 # Launcher template for rules_pythonic test and binary targets.
 # Variables in {{DOUBLE_BRACES}} are substituted at analysis time.
 
-# --- Runfiles resolution (Bazel's bash runfiles library) ---
+# Runfiles are the files Bazel makes available at runtime (test sources, packages,
+# the Python interpreter). They live in a directory tree next to the executable,
+# but its location varies by platform and execution strategy (sandbox, remote, local).
+# This boilerplate finds the runfiles directory and loads Bazel's rlocation() helper,
+# which translates workspace-relative paths to absolute paths at runtime.
+# See: https://bazel.build/extending/rules#runfiles
 if [[ ! -d "${RUNFILES_DIR:-/dev/null}" && ! -f "${RUNFILES_MANIFEST_FILE:-/dev/null}" ]]; then
   if [[ -f "$0.runfiles_manifest" ]]; then
     export RUNFILES_MANIFEST_FILE="$0.runfiles_manifest"
@@ -24,6 +29,11 @@ fi
 
 set -o errexit -o nounset -o pipefail
 
+# After substitution, a concrete launcher looks like:
+#   PYTHON="$(rlocation _main/external/rules_python++python+python_3_11_aarch64-apple-darwin/bin/python3)"
+#   PACKAGES_DIR="$(rlocation _main/mypackage/test_greeting_packages)"
+#   export PYTHONPATH="$(rlocation _main/mypackage/src)":"${PACKAGES_DIR}"
+#   exec "${PYTHON}" -B -s "$(rlocation _main/.../pythonic_pytest_runner.py)" "$(rlocation _main/.../test_greeting.py)" "$@"
 PYTHON="$(rlocation {{PYTHON_TOOLCHAIN}})"
 PACKAGES_DIR="$(rlocation {{PACKAGES_DIR}})"
 

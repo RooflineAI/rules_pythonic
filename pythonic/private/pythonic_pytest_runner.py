@@ -9,13 +9,23 @@ import sys
 
 
 def main():
+    """Run pytest with Bazel test protocol support.
+
+    Handles the env vars Bazel sets for test execution:
+    - TEST_SHARD_STATUS_FILE: touch to signal sharding support
+    - TEST_SHARD_INDEX / TEST_TOTAL_SHARDS: file-level sharding
+    - TESTBRIDGE_TEST_ONLY: test filter (maps to pytest -k)
+    - XML_OUTPUT_FILE: JUnit XML output path (maps to --junitxml)
+    - RUNFILES_DIR: used to anchor --rootdir for conftest.py discovery
+
+    See https://bazel.build/reference/test-encyclopedia for the full protocol.
+    """
     test_files = sys.argv[1:]
 
     shard_status = os.environ.get("TEST_SHARD_STATUS_FILE")
     if shard_status:
         pathlib.Path(shard_status).touch()
 
-    # File-level sharding
     shard_index = os.environ.get("TEST_SHARD_INDEX")
     total_shards = os.environ.get("TEST_TOTAL_SHARDS")
     if shard_index is not None:

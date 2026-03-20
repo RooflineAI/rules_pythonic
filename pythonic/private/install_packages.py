@@ -14,11 +14,14 @@ import subprocess
 import sys
 import tomllib
 
+_HARDLINK_SAMPLE_SIZE = 5
+
 
 def normalize_name(name: str) -> str:
     """Normalize a Python package name per PEP 503.
 
     Lowercases and collapses runs of [-_.] into a single hyphen.
+    Example: "Foo-Bar" -> "foo-bar", "foo_bar" -> "foo-bar", "Foo.Bar" -> "foo-bar"
     """
     return re.sub(r"[-_.]+", "-", name).lower()
 
@@ -26,7 +29,12 @@ def normalize_name(name: str) -> str:
 def extract_dep_name(dep_spec: str) -> str:
     """Extract the package name from a PEP 508 dependency specifier.
 
-    Examples: "torch>=2.1" -> "torch", "foo[bar]>=1.0" -> "foo"
+    Strips version constraints, extras markers, and environment markers.
+    Extras like [bar] are optional install groups — they're handled separately
+    via the --extras flag, not extracted as individual package names.
+
+    Examples: "torch>=2.1" -> "torch", "foo[bar]>=1.0" -> "foo",
+              "pkg ; python_version >= '3.11'" -> "pkg"
     """
     for ch in "><=!;[":
         dep_spec = dep_spec.split(ch)[0]
@@ -38,6 +46,7 @@ def build_wheel_index(wheel_files: list[str]) -> dict[str, pathlib.Path]:
 
     Wheel filenames follow PEP 427:
     {name}-{version}(-{build})?-{python}-{abi}-{platform}.whl
+    Example: "torch-2.10.0-cp311-cp311-linux_x86_64.whl" -> {"torch": Path(...)}
     """
     index: dict[str, pathlib.Path] = {}
     for whl_path in wheel_files:
@@ -54,8 +63,17 @@ def collect_deps(
 ) -> set[str]:
     """Collect normalized dependency names from pyproject.toml files.
 
-    Returns the union of [project.dependencies] and requested
-    [project.optional-dependencies] groups, deduplicated by normalized name.
+    Reads three sections from each pyproject.toml:
+
+        [project]
+        requires-python = ">=3.11"           # validated against current interpreter
+        dependencies = ["torch>=2.1", "six"] # always collected
+
+        [project.optional-dependencies]
+        test = ["pytest>=7.0"]               # collected when "test" is in extras
+        gpu = ["triton"]                     # collected when "gpu" is in extras
+
+    Returns the union of all collected names, deduplicated by normalized name.
     """
     needed: set[str] = set()
 
@@ -79,7 +97,11 @@ def collect_deps(
 
 
 def _check_python_version(requires_python: str, pyproject_path: str) -> None:
-    """Validate that the current Python satisfies requires-python."""
+    """Validate that the current Python satisfies requires-python.
+
+    Only handles the common >=X.Y pattern (e.g., ">=3.11"). More complex
+    specifiers like ">=3.10,<3.13" are not yet supported.
+    """
     py_version = f"{sys.version_info.major}.{sys.version_info.minor}"
 
     match = re.match(r">=\s*(\d+\.\d+)", requires_python)
@@ -95,22 +117,22 @@ def _check_python_version(requires_python: str, pyproject_path: str) -> None:
 
 
 def validate_deps(
-    needed: set[str],
-    wheel_index: dict[str, pathlib.Path],
-    first_party_packages: set[str],
+    declared_deps: set[str],
+    available_wheels: dict[str, pathlib.Path],
+    first_party_names: set[str],
 ) -> list[str]:
     """Check that every declared dependency is either a wheel or first-party.
 
     Returns a list of missing dependency names (empty if all satisfied).
     """
     missing: list[str] = []
-    for dep_name in sorted(needed):
-        if dep_name not in wheel_index and dep_name not in first_party_packages:
+    for dep_name in sorted(declared_deps):
+        if dep_name not in available_wheels and dep_name not in first_party_names:
             missing.append(dep_name)
     return missing
 
 
-def verify_hardlinks(target_dir: pathlib.Path) -> None:
+def verify_hardlinks(target_dir: pathlib.Path, sample_size: int = _HARDLINK_SAMPLE_SIZE) -> None:
     """Warn if uv fell back to copies instead of hardlinks.
 
     uv silently copies when cache and output are on different filesystems.
@@ -119,7 +141,8 @@ def verify_hardlinks(target_dir: pathlib.Path) -> None:
     checked = 0
     for f in target_dir.rglob("*"):
         if f.is_file() and not f.is_symlink():
-            if f.stat().st_nlink == 1 and f.stat().st_size > 4096:
+            st = f.stat()
+            if st.st_nlink == 1 and st.st_size > 4096:
                 print(
                     "WARNING: hardlinks not working — files have nlink=1.\n"
                     "  UV_CACHE_DIR and output directory are likely on different\n"
@@ -129,7 +152,7 @@ def verify_hardlinks(target_dir: pathlib.Path) -> None:
                 )
                 break
             checked += 1
-            if checked >= 5:
+            if checked >= sample_size:
                 break
 
 
@@ -145,10 +168,10 @@ def install_packages(
     """Install third-party wheels into a flat target directory."""
     target_dir = pathlib.Path(output_dir)
 
-    wheel_index = build_wheel_index(wheel_files)
-    fp_normalized = {normalize_name(p) for p in first_party_packages}
-    needed = collect_deps(pyproject_paths, extras)
-    missing = validate_deps(needed, wheel_index, fp_normalized)
+    available_wheels = build_wheel_index(wheel_files)
+    first_party_names = {normalize_name(p) for p in first_party_packages}
+    declared_deps = collect_deps(pyproject_paths, extras)
+    missing = validate_deps(declared_deps, available_wheels, first_party_names)
 
     if missing:
         for m in missing:
@@ -162,6 +185,7 @@ def install_packages(
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
+    # wheel_files may contain non-.whl paths if the filegroup includes metadata
     wheels_to_install = [w for w in wheel_files if w.endswith(".whl")]
     if wheels_to_install:
         subprocess.check_call([

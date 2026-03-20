@@ -3,6 +3,11 @@
 load(":providers.bzl", "PythonicPackageInfo")
 
 def _pythonic_package_impl(ctx):
+    # Combine the BUILD file's directory with the user's src_root to get
+    # the full workspace-relative path. For a BUILD at packages/attic/ with
+    # src_root="src", this produces "packages/attic/src". For a BUILD at the
+    # workspace root with src_root="src", ctx.label.package is "" so we
+    # use src_root directly.
     src_root = ctx.label.package
     if ctx.attr.src_root and ctx.attr.src_root != ".":
         src_root = src_root + "/" + ctx.attr.src_root if src_root else ctx.attr.src_root

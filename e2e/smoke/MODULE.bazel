@@ -5,7 +5,6 @@ module(name = "smoke_test")
 bazel_dep(name = "rules_pythonic", version = "0.0.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "rules_python", version = "1.9.0")
-bazel_dep(name = "rules_multitool", version = "0.11.0")
 
 local_path_override(
     module_name = "rules_pythonic",
@@ -22,9 +21,3 @@ pip.parse(
     requirements_lock = "//:requirements.txt",
 )
 use_repo(pip, "pypi")
-
-# rules_pythonic ships a uv lockfile — consumers re-export the hub so
-# @multitool//tools/uv is visible to the rules at analysis time.
-multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitool")
-multitool.hub(lockfile = "@rules_pythonic//pythonic/private:uv.lock.json")
-use_repo(multitool, "multitool")
