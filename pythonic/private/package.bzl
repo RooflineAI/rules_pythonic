@@ -2,6 +2,10 @@
 
 load(":providers.bzl", "PythonicPackageInfo")
 
+_PY_TOOLCHAIN = "@bazel_tools//tools/python:toolchain_type"
+
+# --- Package rule (source-dep path) ---
+
 def _pythonic_package_impl(ctx):
     # Combine the BUILD file's directory with the user's src_root to get
     # the full workspace-relative path. For a BUILD at packages/attic/ with
@@ -43,7 +47,7 @@ def _pythonic_package_impl(ctx):
         ),
     ]
 
-pythonic_package = rule(
+_pythonic_inner_package = rule(
     implementation = _pythonic_package_impl,
     attrs = {
         "pyproject": attr.label(
@@ -70,3 +74,124 @@ pythonic_package = rule(
     },
     doc = "Declare a Python package for rules_pythonic.",
 )
+
+# --- Wheel rule ---
+
+def _pythonic_wheel_impl(ctx):
+    py_toolchain = ctx.toolchains[_PY_TOOLCHAIN]
+    py_runtime = py_toolchain.py3_runtime
+    python = py_runtime.interpreter
+    uv = ctx.executable._uv
+
+    wheel_dir = ctx.actions.declare_directory(ctx.label.name)
+
+    wheels = []
+    for whl_target in ctx.attr.wheels:
+        wheels.extend(whl_target.files.to_list())
+
+    # Collect directories containing wheels for --find-links.
+    # Dedup because many wheels share the same directory.
+    wheel_dir_paths = {}
+    for w in wheels:
+        d = w.path.rsplit("/", 1)[0] if "/" in w.path else "."
+        wheel_dir_paths[d] = True
+
+    args = ctx.actions.args()
+    args.add(ctx.file._build_wheel)
+    args.add("--uv-bin", uv)
+    args.add("--python-bin", python)
+    args.add("--pyproject", ctx.file.pyproject)
+    args.add("--output-dir", wheel_dir.path)
+    args.add_all("--src-files", ctx.files.srcs)
+    if ctx.attr.src_prefix:
+        args.add("--src-prefix", ctx.file.src_prefix.path)
+    args.add_all("--wheel-dirs", wheel_dir_paths.keys())
+
+    ctx.actions.run(
+        executable = python,
+        arguments = [args],
+        inputs = depset(
+            direct = [ctx.file.pyproject, ctx.file._build_wheel] + ctx.files.srcs + wheels,
+            transitive = [py_runtime.files],
+        ),
+        outputs = [wheel_dir],
+        tools = [uv],
+        mnemonic = "PythonicWheel",
+        progress_message = "Building wheel for %{label}",
+        use_default_shell_env = True,
+    )
+
+    return [DefaultInfo(files = depset([wheel_dir]))]
+
+_pythonic_wheel = rule(
+    implementation = _pythonic_wheel_impl,
+    attrs = {
+        "pyproject": attr.label(
+            allow_single_file = [".toml"],
+            mandatory = True,
+        ),
+        "srcs": attr.label_list(
+            allow_files = True,
+        ),
+        "src_prefix": attr.label(
+            allow_single_file = True,
+            doc = "Directory target whose path is stripped from src file paths " +
+                  "when staging the wheel build. Use for assembled packages where " +
+                  "srcs come from copy_to_directory or similar.",
+        ),
+        "wheels": attr.label_list(
+            allow_files = True,
+            doc = "Filegroup(s) containing build backend wheels (hatchling, setuptools, etc.).",
+        ),
+        "_uv": attr.label(
+            default = "@multitool//tools/uv",
+            executable = True,
+            cfg = "exec",
+        ),
+        "_build_wheel": attr.label(
+            default = "//pythonic/private:build_wheel.py",
+            allow_single_file = True,
+        ),
+    },
+    toolchains = [_PY_TOOLCHAIN],
+    doc = "Build a .whl file via uv build.",
+)
+
+# --- Public API (macro) ---
+
+def pythonic_package(name, wheels = ["//:all_wheels"], src_prefix = None, **kwargs):
+    """Declare a Python package with source-dep and wheel targets.
+
+    Creates two targets:
+    - :name — source on PYTHONPATH (fast iteration, used as a dep)
+    - :name.wheel — built .whl file (deployment, artifact testing)
+
+    The .wheel target is tagged "manual" so it is excluded from wildcard
+    builds (//...). It only builds when explicitly requested or pulled
+    in as a dependency.
+
+    Args:
+        name: Target name.
+        wheels: Labels to @pypi wheel filegroups providing the build backend.
+            Defaults to ["//:all_wheels"].
+        src_prefix: Prefix to strip from src file paths when staging the wheel
+            build. Only needed for assembled packages where srcs come from a
+            different directory tree (e.g. copy_to_directory output).
+        **kwargs: All other attrs forwarded to the rule (pyproject, src_root,
+            srcs, data, deps).
+    """
+    _pythonic_inner_package(
+        name = name,
+        **kwargs
+    )
+
+    wheel_kwargs = {
+        "name": name + ".wheel",
+        "pyproject": kwargs.get("pyproject"),
+        "srcs": kwargs.get("srcs", []),
+        "wheels": wheels,
+        "tags": ["manual"],
+    }
+    if src_prefix:
+        wheel_kwargs["src_prefix"] = src_prefix
+    _pythonic_wheel(**wheel_kwargs)

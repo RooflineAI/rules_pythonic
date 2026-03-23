@@ -1,5 +1,6 @@
 exports_files(
     [
+        "build_wheel.py",
         "install_packages.py",
         "pythonic_pytest_runner.py",
         "pythonic_run.tmpl.sh",

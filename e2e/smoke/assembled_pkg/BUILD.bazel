@@ -1,0 +1,20 @@
+load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
+load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package")
+
+# Simulate sources assembled from external Bazel targets.
+# The copy_to_directory strips the "external_src" prefix, placing
+# "assembled_pkg/__init__.py" and "assembled_pkg/mathlib.py" at the
+# tree root — matching what the build backend expects.
+copy_to_directory(
+    name = "assembled_tree",
+    srcs = glob(["external_src/**/*.py"]),
+    root_paths = ["assembled_pkg/external_src"],
+)
+
+pythonic_package(
+    name = "assembled_pkg",
+    pyproject = "pyproject.toml",
+    src_root = ".",
+    srcs = [":assembled_tree"],
+    src_prefix = ":assembled_tree",
+)
