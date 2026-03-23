@@ -30,6 +30,7 @@ def _pythonic_package_impl(ctx):
 
     return [
         PythonicPackageInfo(
+            package_name = ctx.label.name,
             src_root = src_root,
             srcs = depset(ctx.files.srcs),
             pyproject = ctx.file.pyproject,

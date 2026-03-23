@@ -31,11 +31,7 @@ def _collect_dep_info(deps):
             if info.pyproject:
                 pyprojects.append(info.pyproject)
 
-            # TODO(rules_pythonic-n7h): extract name from pyproject.toml
-            # instead of inferring from src_root path component
-            first_party_names.append(
-                info.src_root.split("/")[-1] if "/" in info.src_root else info.src_root,
-            )
+            first_party_names.append(info.package_name)
 
             # Transitive deps were already collected by each intermediate
             # pythonic_package via depset propagation. We flatten here to
@@ -45,9 +41,8 @@ def _collect_dep_info(deps):
                     src_roots.append(trans.src_root)
                 if trans.pyproject and trans.pyproject not in pyprojects:
                     pyprojects.append(trans.pyproject)
-                trans_name = trans.src_root.split("/")[-1] if "/" in trans.src_root else trans.src_root
-                if trans_name not in first_party_names:
-                    first_party_names.append(trans_name)
+                if trans.package_name not in first_party_names:
+                    first_party_names.append(trans.package_name)
 
         dep_runfiles.append(dep[DefaultInfo].default_runfiles)
 
