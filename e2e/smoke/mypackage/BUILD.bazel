@@ -1,4 +1,4 @@
-load("@rules_pythonic//pythonic:defs.bzl", "pythonic_binary", "pythonic_package", "pythonic_test")
+load("@rules_pythonic//pythonic:defs.bzl", "pythonic_binary", "pythonic_files", "pythonic_package", "pythonic_test")
 
 pythonic_package(
     name = "mypackage",
@@ -13,8 +13,20 @@ pythonic_binary(
     deps = [":mypackage"],
 )
 
+pythonic_files(
+    name = "test_helpers",
+    srcs = glob(["helpers/**/*.py"]),
+    src_root = "helpers",
+)
+
 pythonic_test(
     name = "test_greeting",
     srcs = ["tests/test_greeting.py"],
     deps = [":mypackage"],
+)
+
+pythonic_test(
+    name = "test_with_helpers",
+    srcs = ["tests/test_with_helpers.py"],
+    deps = [":mypackage", ":test_helpers"],
 )
