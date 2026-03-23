@@ -127,7 +127,9 @@ def _build_env_exports(env_dict):
     """
     lines = ""
     for k, v in env_dict.items():
-        lines += 'export {key}="{value}"\n'.format(key = k, value = v)
+        # Escape shell metacharacters that are special inside double quotes.
+        escaped = v.replace("\\", "\\\\").replace('"', '\\"').replace("$", "\\$").replace("`", "\\`")
+        lines += 'export {key}="{value}"\n'.format(key = k, value = escaped)
     return lines
 
 # --- Rule implementation ---
