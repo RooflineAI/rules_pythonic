@@ -1,10 +1,16 @@
-load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package", "pythonic_test")
+load("@rules_pythonic//pythonic:defs.bzl", "pythonic_binary", "pythonic_package", "pythonic_test")
 
 pythonic_package(
     name = "mypackage",
     pyproject = "pyproject.toml",
     src_root = "src",
     srcs = glob(["src/**/*.py"]),
+)
+
+pythonic_binary(
+    name = "hello",
+    main_module = "mypackage.greeting",
+    deps = [":mypackage"],
 )
 
 pythonic_test(

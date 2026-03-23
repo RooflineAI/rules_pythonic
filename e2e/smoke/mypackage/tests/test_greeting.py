@@ -1,6 +1,6 @@
 import importlib.metadata
 
-from mypackage import hello
+from mypackage.greeting import hello
 
 
 def test_hello():

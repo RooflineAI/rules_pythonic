@@ -17,6 +17,11 @@ if [[ ! -d "${RUNFILES_DIR:-/dev/null}" && ! -f "${RUNFILES_MANIFEST_FILE:-/dev/
     export RUNFILES_DIR="$0.runfiles"
   fi
 fi
+# Ensure RUNFILES_DIR is set even in manifest mode. rlocation falls back to
+# filesystem for directory paths (not present in the manifest).
+if [[ -z "${RUNFILES_DIR:-}" && -d "$0.runfiles" ]]; then
+  export RUNFILES_DIR="$0.runfiles"
+fi
 if [[ -f "${RUNFILES_DIR:-/dev/null}/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
   source "${RUNFILES_DIR}/bazel_tools/tools/bash/runfiles/runfiles.bash"
 elif [[ -f "${RUNFILES_MANIFEST_FILE:-/dev/null}" ]]; then
@@ -30,10 +35,10 @@ fi
 set -o errexit -o nounset -o pipefail
 
 # After substitution, a concrete launcher looks like:
-#   PYTHON="$(rlocation _main/external/rules_python++python+python_3_11_aarch64-apple-darwin/bin/python3)"
+#   PYTHON="$(rlocation rules_python++python+python_3_11/bin/python3)"
 #   PACKAGES_DIR="$(rlocation _main/mypackage/test_greeting_packages)"
 #   export PYTHONPATH="$(rlocation _main/mypackage/src)":"${PACKAGES_DIR}"
-#   exec "${PYTHON}" -B -s "$(rlocation _main/.../pythonic_pytest_runner.py)" "$(rlocation _main/.../test_greeting.py)" "$@"
+#   exec "${PYTHON}" -B -s "$(rlocation rules_pythonic+/.../pythonic_pytest_runner.py)" "$(rlocation _main/.../test_foo.py)" "$@"
 PYTHON="$(rlocation {{PYTHON_TOOLCHAIN}})"
 PACKAGES_DIR="$(rlocation {{PACKAGES_DIR}})"
 

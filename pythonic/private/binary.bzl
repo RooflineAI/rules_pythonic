@@ -1,4 +1,4 @@
-"pythonic_test — macro + rule for Python test targets with third-party packages."
+"pythonic_binary — macro + rule for executable Python targets with third-party packages."
 
 load(":common.bzl", "build_env_exports", "build_pythonpath", "collect_dep_info", "rlocation_path")
 load(":providers.bzl", "PythonicPackageInfo")
@@ -8,16 +8,9 @@ _PY_TOOLCHAIN = "@bazel_tools//tools/python:toolchain_type"
 def _build_exec_cmd(ctx):
     """Build the shell command that the launcher will exec.
 
-    Three modes depending on user input:
-
-    1. main = "tests/run_distributed.py"
-       -> "$(rlocation _main/pkg/tests/run_distributed.py)"
-
-    2. main_module = "torch.distributed.run"
-       -> -m torch.distributed.run
-
-    3. Neither (default) — pytest runner with test files as positional args:
-       -> "$(rlocation _main/.../pythonic_pytest_runner.py)" "$(rlocation _main/pkg/tests/test_foo.py)"
+    Two modes:
+    1. main = "src/serve.py" -> "$(rlocation _main/pkg/src/serve.py)"
+    2. main_module = "mypackage.serve" -> -m mypackage.serve
 
     Args:
         ctx: Rule context.
@@ -29,28 +22,10 @@ def _build_exec_cmd(ctx):
         return '"$(rlocation {path})"'.format(
             path = rlocation_path(ctx, ctx.file.main),
         )
-    elif ctx.attr.main_module:
-        return "-m " + ctx.attr.main_module
     else:
-        parts = ['"$(rlocation {path})"'.format(
-            path = rlocation_path(ctx, ctx.file._pytest_runner),
-        )]
-        for f in ctx.files.srcs:
-            parts.append('"$(rlocation {path})"'.format(
-                path = rlocation_path(ctx, f),
-            ))
-        return " ".join(parts)
+        return "-m " + ctx.attr.main_module
 
-# --- Rule implementation ---
-
-def _pythonic_test_impl(ctx):
-    """Implementation for _pythonic_inner_test.
-
-    1. Collects provider info from deps (source roots, pyprojects, names).
-    2. Runs install_packages.py to create a flat packages directory (TreeArtifact).
-    3. Generates a launcher script from the template.
-    4. Assembles runfiles for test execution.
-    """
+def _pythonic_binary_impl(ctx):
     py_toolchain = ctx.toolchains[_PY_TOOLCHAIN]
     py_runtime = py_toolchain.py3_runtime
     python = py_runtime.interpreter
@@ -62,9 +37,6 @@ def _pythonic_test_impl(ctx):
     for whl_target in ctx.attr.wheels:
         wheels.extend(whl_target.files.to_list())
 
-    # TreeArtifact — Bazel treats this directory as a single cacheable output.
-    # If none of the inputs (wheels, pyprojects) change, Bazel skips the
-    # ctx.actions.run entirely and reuses the cached directory.
     packages_dir = ctx.actions.declare_directory(ctx.label.name + "_packages")
 
     args = ctx.actions.args()
@@ -99,21 +71,16 @@ def _pythonic_test_impl(ctx):
             "{{PYTHON_TOOLCHAIN}}": rlocation_path(ctx, python),
             "{{PACKAGES_DIR}}": rlocation_path(ctx, packages_dir),
             "{{FIRST_PARTY_PYTHONPATH}}": build_pythonpath(ctx, dep_info.src_roots),
-            "{{PYTHON_ENV}}": build_env_exports(ctx.attr.test_env),
+            "{{PYTHON_ENV}}": build_env_exports(ctx.attr.env),
             "{{INTERPRETER_ARGS}}": " ".join(ctx.attr.interpreter_args),
             "{{EXEC_CMD}}": _build_exec_cmd(ctx),
         },
         is_executable = True,
     )
 
-    # Runfiles = everything that must be available in the sandbox at test time:
-    # the installed packages dir, the pytest runner, test sources, data files,
-    # the Python toolchain, and all transitive dep runfiles (first-party sources).
-    runfiles_files = [packages_dir, ctx.file._pytest_runner] + ctx.files.srcs + ctx.files.data
+    runfiles_files = [packages_dir] + ctx.files.srcs + ctx.files.data
     if ctx.attr.main:
         runfiles_files.append(ctx.file.main)
-    if ctx.attr.pytest_root:
-        runfiles_files.extend(ctx.files.pytest_root)
 
     runfiles = ctx.runfiles(
         files = runfiles_files,
@@ -128,22 +95,19 @@ def _pythonic_test_impl(ctx):
         runfiles = runfiles,
     )]
 
-# --- Rule definition (internal, not exported) ---
-
-_pythonic_inner_test = rule(
-    implementation = _pythonic_test_impl,
-    test = True,
+_pythonic_inner_binary = rule(
+    implementation = _pythonic_binary_impl,
+    executable = True,
     attrs = {
-        "srcs": attr.label_list(allow_files = [".py"], doc = "Test source files."),
+        "srcs": attr.label_list(allow_files = [".py"], doc = "Additional Python source files."),
         "deps": attr.label_list(providers = [PythonicPackageInfo], doc = "pythonic_package or pythonic_files targets."),
         "wheels": attr.label_list(allow_files = True, doc = "Filegroup(s) of @pypi wheel targets."),
         "extras": attr.string_list(doc = "Optional dependency groups from pyproject.toml."),
-        "main": attr.label(allow_single_file = [".py"], doc = "Python file to run instead of pytest."),
-        "main_module": attr.string(doc = "Python module to run via -m instead of pytest."),
-        "test_env": attr.string_dict(doc = "Environment variables passed to the test."),
+        "main": attr.label(allow_single_file = [".py"], doc = "Python file to run as entry point."),
+        "main_module": attr.string(doc = "Python module to run via -m."),
+        "env": attr.string_dict(doc = "Environment variables passed to the binary."),
         "interpreter_args": attr.string_list(doc = "Extra flags for the Python interpreter."),
         "data": attr.label_list(allow_files = True, doc = "Additional runtime data files."),
-        "pytest_root": attr.label(allow_files = True, doc = "Filegroup with conftest.py chain for pytest discovery."),
         "_uv": attr.label(
             default = "@multitool//tools/uv",
             executable = True,
@@ -151,10 +115,6 @@ _pythonic_inner_test = rule(
         ),
         "_install_packages": attr.label(
             default = "//pythonic/private:install_packages.py",
-            allow_single_file = True,
-        ),
-        "_pytest_runner": attr.label(
-            default = "//pythonic/private:pythonic_pytest_runner.py",
             allow_single_file = True,
         ),
         "_launcher_template": attr.label(
@@ -168,36 +128,32 @@ _pythonic_inner_test = rule(
     toolchains = [_PY_TOOLCHAIN],
 )
 
-# --- Public API (legacy macro) ---
+def pythonic_binary(name, main = None, main_module = None, wheels = ["//:all_wheels"], extras = [], env = {}, **kwargs):
+    """Create an executable Python target with third-party packages installed via uv.
 
-# Legacy macro is necessary because label defaults in both rules AND symbolic
-# macros resolve in the defining module's repo, not the consumer's.
-# "//:all_wheels" must resolve in the consumer's workspace, which only works
-# when the string literal lives in a def that's expanded in the consumer's BUILD file.
-def pythonic_test(name, wheels = ["//:all_wheels"], extras = ["test"], env = {}, **kwargs):
-    """Create a Python test target with third-party packages installed via uv.
-
-    By default runs pytest. Use main= or main_module= for other runners.
-
-    Requires //:all_wheels filegroup in your root BUILD — create it once:
-    ```
-    load("@pypi//:requirements.bzl", "all_whl_requirements")
-    filegroup(name = "all_wheels", srcs = all_whl_requirements, visibility = ["//visibility:public"])
-    ```
+    Exactly one of main or main_module must be provided.
 
     Args:
         name: Target name.
+        main: Python file to run as entry point.
+        main_module: Python module to run via -m.
         wheels: Labels to @pypi wheel filegroups. Defaults to ["//:all_wheels"].
-        extras: Optional dependency groups from pyproject.toml. Defaults to ["test"].
-        env: Environment variables. Remapped to test_env because Bazel auto-adds
-            an 'env' attr on test rules.
-        **kwargs: All other attrs forwarded to the rule (srcs, deps, main,
-            main_module, interpreter_args, data, pytest_root, size, timeout, tags).
+        extras: Optional dependency groups from pyproject.toml.
+        env: Environment variables passed to the binary.
+        **kwargs: All other attrs forwarded to the rule (srcs, deps,
+            interpreter_args, data, size, timeout, tags).
     """
-    _pythonic_inner_test(
+    if not main and not main_module:
+        fail("pythonic_binary requires either main or main_module")
+    if main and main_module:
+        fail("pythonic_binary accepts main or main_module, not both")
+
+    _pythonic_inner_binary(
         name = name,
+        main = main,
+        main_module = main_module,
         wheels = wheels,
         extras = extras,
-        test_env = env,
+        env = env,
         **kwargs
     )
