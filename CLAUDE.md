@@ -11,28 +11,43 @@ rules_pythonic is a Bazel ruleset for Python that replaces ~7,000 lines of Starl
 ```bash
 uv run pytest pythonic/private/tests/  # Python unit tests (fast, no Bazel)
 bazel test //e2e/smoke:*              # End-to-end smoke test (requires user.bazelrc)
-bazel run //:gazelle                  # Regenerate bzl_library targets
 bazel mod tidy --lockfile_mode=refresh  # Update MODULE.bazel.lock
 ```
 
+E2e smoke tests run from `e2e/smoke/` which is a separate Bazel module. Requires `user.bazelrc` with `UV_CACHE_DIR` and `sandbox_writable_path` (see Consumer Setup below).
+
 Bazel 8.6.0 is pinned in `.bazelversion`. bzlmod is enabled; there is no legacy WORKSPACE usage.
+
+## Public API
+
+All exported from `pythonic/defs.bzl`:
+
+- **`pythonic_package(name, pyproject, src_root, srcs, ...)`** — Declares a Python package. Creates two targets: `:name` (source on PYTHONPATH) and `:name.wheel` (built .whl via `uv build`, tagged `manual`).
+- **`pythonic_test(name, srcs, deps, ...)`** — Python test target. Runs pytest by default. Installs third-party deps via `uv pip install --target`.
+- **`pythonic_binary(name, main/main_module, deps, ...)`** — Executable Python target. Exactly one of `main` or `main_module` required.
+- **`pythonic_files(name, srcs, src_root)`** — Importable Python files without a pyproject.toml. Leaf node, no deps.
+- **`PythonicPackageInfo`** — Provider with fields: `package_name`, `src_root`, `srcs`, `pyproject`, `wheel`, `first_party_deps`.
 
 ## Architecture
 
 Three-layer design:
 
-1. **Source of truth**: `pyproject.toml` declares third-party deps (never BUILD files)
-2. **Build time**: `install_packages.py` reads pyproject.toml via tomllib, matches deps against pre-downloaded wheels, runs `uv pip install --target --hardlink` to produce a flat TreeArtifact
+1. **Source of truth**: `pyproject.toml` declares third-party deps and build backend (never BUILD files)
+2. **Build time**: `install_packages.py` reads pyproject.toml, runs `uv pip install --target --hardlink` to produce a flat TreeArtifact. `build_wheel.py` stages a symlink tree and runs `uv build --wheel`.
 3. **Runtime**: `pythonic_run.tmpl.sh` launcher sets PYTHONPATH (first-party src roots before third-party site-packages) and execs Python
 
 Key files:
-- `pythonic/defs.bzl` — Public API (exports `pythonic_package`, `pythonic_test`, `PythonicPackageInfo`)
-- `pythonic/private/package.bzl` — `pythonic_package` rule: declares packages, builds transitive dep closure
-- `pythonic/private/test.bzl` — `pythonic_test` rule+macro: orchestrates install, builds launcher, runs tests
-- `pythonic/private/providers.bzl` — `PythonicPackageInfo` provider (package_name, src_root, srcs, pyproject, wheel, first_party_deps)
-- `pythonic/private/install_packages.py` — Build action: reads pyproject.toml, runs uv
+- `pythonic/defs.bzl` — Public API
+- `pythonic/private/common.bzl` — Shared helpers: `rlocation_path`, `collect_dep_info`, `build_pythonpath`, `build_env_exports`
+- `pythonic/private/package.bzl` — `pythonic_package` rule + `.wheel` sub-target
+- `pythonic/private/binary.bzl` — `pythonic_binary` rule
+- `pythonic/private/files.bzl` — `pythonic_files` rule
+- `pythonic/private/test.bzl` — `pythonic_test` rule
+- `pythonic/private/providers.bzl` — `PythonicPackageInfo` provider
+- `pythonic/private/install_packages.py` — Build action: installs third-party wheels
+- `pythonic/private/build_wheel.py` — Build action: stages symlink tree, delegates to `uv build --wheel`
 - `pythonic/private/pythonic_pytest_runner.py` — Bridges Bazel test protocol to pytest
-- `pythonic/private/pythonic_run.tmpl.sh` — Bash launcher template
+- `pythonic/private/pythonic_run.tmpl.sh` — Bash launcher template (shared by test and binary)
 
 ## Key Design Decisions
 
@@ -41,7 +56,10 @@ Key files:
 - `uv` handles platform wheel selection automatically (no Starlark `select()`)
 - Namespace packages work implicitly via flat site-packages
 - PYTHONPATH ordering: first-party shadows third-party
-- `PythonicInstall` uses `use_default_shell_env = True` so `--action_env` vars (notably `UV_CACHE_DIR`) reach the action
+- `PythonicInstall` and `PythonicWheel` use `use_default_shell_env = True` so `--action_env` vars (notably `UV_CACHE_DIR`) reach the action
+- Wheel building is backend-agnostic: whatever `[build-system]` the pyproject.toml declares, `uv build` invokes it. Build backend wheels come from `@pypi` via `--no-index --find-links`.
+- For assembled packages (e.g. `copy_to_directory` output), `src_prefix` tells the wheel staging script what path to strip
+- External repo rlocation paths strip the `../` prefix (same pattern as rules_python and rules_cc)
 
 ## Consumer Setup
 
@@ -54,6 +72,8 @@ Without this, `PythonicInstall` fails with setup instructions. Both lines are ne
 
 ## Development
 
+- Dev tooling via uv: `uv sync` installs pytest. `uv run pytest` runs unit tests.
 - Pre-commit hooks: `buildifier` (Starlark formatting), `typos`, conventional commits linting. Run `pre-commit install` after cloning.
 - Releases automated via conventional commits → GitHub Actions cron/manual trigger.
 - To use local checkout as override: `echo "common --override_repository=rules_pythonic=$(pwd)" >> ~/.bazelrc`
+- Do not use gazelle. BUILD files are maintained manually.
