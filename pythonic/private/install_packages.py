@@ -8,6 +8,7 @@ provided wheels via `uv pip install --target`.
 Requires Python >= 3.11 (for tomllib).
 """
 import argparse
+import os
 import pathlib
 import re
 import subprocess
@@ -132,11 +133,13 @@ def validate_deps(
     return missing
 
 
-def verify_hardlinks(target_dir: pathlib.Path, sample_size: int = _HARDLINK_SAMPLE_SIZE) -> None:
-    """Warn if uv fell back to copies instead of hardlinks.
+def verify_hardlinks(target_dir: pathlib.Path, cache_dir: str, sample_size: int = _HARDLINK_SAMPLE_SIZE) -> None:
+    """Fail if uv fell back to copies instead of hardlinks.
 
-    uv silently copies when cache and output are on different filesystems.
-    We sample a few files and check nlink > 1.
+    uv silently copies when cache and output are on different filesystems,
+    or when the sandbox blocks link(2). We sample a few installed files and
+    require nlink > 1 — a full copy means either a cross-device situation
+    or a missing sandbox_writable_path for the uv cache.
     """
     checked = 0
     for f in target_dir.rglob("*"):
@@ -144,16 +147,38 @@ def verify_hardlinks(target_dir: pathlib.Path, sample_size: int = _HARDLINK_SAMP
             st = f.stat()
             if st.st_nlink == 1 and st.st_size > 4096:
                 print(
-                    "WARNING: hardlinks not working — files have nlink=1.\n"
-                    "  UV_CACHE_DIR and output directory are likely on different\n"
-                    "  filesystems, or the sandbox is blocking hardlinks.\n"
-                    "  See: https://github.com/pythonicorg/rules_pythonic#hardlinks",
+                    "ERROR: hardlinks not working — installed files have nlink=1.\n"
+                    f"  UV_CACHE_DIR={cache_dir}\n"
+                    f"  output_dir={target_dir}\n\n"
+                    "  Ensure both directories are on the same filesystem and that\n"
+                    "  the sandbox can access the cache. Add to your .bazelrc:\n\n"
+                    f"    build --sandbox_writable_path={cache_dir}\n",
                     file=sys.stderr,
                 )
-                break
+                sys.exit(1)
             checked += 1
             if checked >= sample_size:
                 break
+
+
+def _require_uv_cache_dir() -> str:
+    """Return UV_CACHE_DIR from the environment, or fail with setup instructions."""
+    cache_dir = os.environ.get("UV_CACHE_DIR")
+    if cache_dir:
+        return cache_dir
+
+    print(
+        "ERROR: UV_CACHE_DIR not set. PythonicInstall needs a writable uv cache\n"
+        "on the same filesystem as your Bazel output base for hardlinks to work.\n\n"
+        "Add to your .bazelrc:\n\n"
+        "  build --action_env=UV_CACHE_DIR=/path/to/uv/cache\n"
+        "  build --sandbox_writable_path=/path/to/uv/cache\n\n"
+        "Common default paths:\n"
+        "  macOS:  /Users/<you>/Library/Caches/uv\n"
+        "  Linux:  /home/<you>/.cache/uv\n",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def install_packages(
@@ -167,6 +192,7 @@ def install_packages(
 ) -> None:
     """Install third-party wheels into a flat target directory."""
     target_dir = pathlib.Path(output_dir)
+    cache_dir = _require_uv_cache_dir()
 
     available_wheels = build_wheel_index(wheel_files)
     first_party_names = {normalize_name(p) for p in first_party_packages}
@@ -190,6 +216,7 @@ def install_packages(
     if wheels_to_install:
         subprocess.check_call([
             uv_bin, "pip", "install",
+            "--cache-dir", cache_dir,
             "--target", str(target_dir),
             "--python", python_bin,
             # --no-deps: pip.parse already resolved the full transitive closure
@@ -198,7 +225,7 @@ def install_packages(
             "--no-deps", "--no-index", "--link-mode=hardlink", "-q",
         ] + wheels_to_install)
 
-        verify_hardlinks(target_dir)
+        verify_hardlinks(target_dir, cache_dir)
 
 
 def main() -> None:

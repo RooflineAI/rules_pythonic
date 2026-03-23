@@ -29,7 +29,7 @@ Key files:
 - `pythonic/defs.bzl` — Public API (exports `pythonic_package`, `pythonic_test`, `PythonicPackageInfo`)
 - `pythonic/private/package.bzl` — `pythonic_package` rule: declares packages, builds transitive dep closure
 - `pythonic/private/test.bzl` — `pythonic_test` rule+macro: orchestrates install, builds launcher, runs tests
-- `pythonic/private/providers.bzl` — `PythonicPackageInfo` provider (src_root, srcs, pyproject, wheel, first_party_deps)
+- `pythonic/private/providers.bzl` — `PythonicPackageInfo` provider (package_name, src_root, srcs, pyproject, wheel, first_party_deps)
 - `pythonic/private/install_packages.py` — Build action: reads pyproject.toml, runs uv
 - `pythonic/private/pythonic_pytest_runner.py` — Bridges Bazel test protocol to pytest
 - `pythonic/private/pythonic_run.tmpl.sh` — Bash launcher template
@@ -41,6 +41,16 @@ Key files:
 - `uv` handles platform wheel selection automatically (no Starlark `select()`)
 - Namespace packages work implicitly via flat site-packages
 - PYTHONPATH ordering: first-party shadows third-party
+- `PythonicInstall` uses `use_default_shell_env = True` so `--action_env` vars (notably `UV_CACHE_DIR`) reach the action
+
+## Consumer Setup
+
+Consumers must configure their uv cache path in `.bazelrc`:
+```
+build --action_env=UV_CACHE_DIR=/absolute/path/to/uv/cache
+build --sandbox_writable_path=/absolute/path/to/uv/cache
+```
+Without this, `PythonicInstall` fails with setup instructions. Both lines are needed: `action_env` passes the path to the action, `sandbox_writable_path` lets the sandbox access it. The cache must be on the same filesystem as Bazel's output base for hardlinks to work.
 
 ## Development
 

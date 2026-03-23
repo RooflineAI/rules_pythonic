@@ -1,4 +1,8 @@
-# Allow uv to access its cache from within the sandbox.
-# Must be on the same filesystem as Bazel's output base for hardlinks to work.
-# Users should set this in their user.bazelrc with their actual home path.
+# PythonicInstall actions require UV_CACHE_DIR to point at a writable uv cache
+# on the same filesystem as Bazel's output base (for hardlinks). The sandbox
+# must also be allowed to write there.
+#
+# Create a user.bazelrc (gitignored) with:
+#   build --action_env=UV_CACHE_DIR=/absolute/path/to/uv/cache
+#   build --sandbox_writable_path=/absolute/path/to/uv/cache
 try-import %workspace%/user.bazelrc

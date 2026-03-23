@@ -238,13 +238,16 @@ ERROR: package "requests" required by pyproject.toml but not found in @pypi whee
        Add it to requirements.txt or to deps = [...] in BUILD.
 ```
 
-**Broken hardlinks.** If `UV_CACHE_DIR` and the venv output are on different filesystems, `install_packages.py` detects `nlink=1` after install and fails immediately:
+**Broken hardlinks.** If `UV_CACHE_DIR` and the output directory are on different filesystems, `install_packages.py` detects `nlink=1` after install and fails immediately:
 ```
-ERROR: hardlinks not working — files have nlink=1.
-  UV_CACHE_DIR (~/.cache/uv) and venv output (/sandbox/...)
-  are likely on different filesystems.
-  Fix: set sandbox_writable_path in .bazelrc to a path on
-  the same filesystem as Bazel's output base.
+ERROR: hardlinks not working — installed files have nlink=1.
+  UV_CACHE_DIR=/path/to/uv/cache
+  output_dir=/path/to/output
+
+  Ensure both directories are on the same filesystem and that
+  the sandbox can access the cache. Add to your .bazelrc:
+
+    build --sandbox_writable_path=/path/to/uv/cache
 ```
 
 **Wrong Python version.** If the toolchain Python doesn't satisfy `requires-python` from `pyproject.toml`, the build fails before any installation:
@@ -420,7 +423,7 @@ Three levels of adoption: (1) one Python version, don't set the flag, zero overh
 
 Three layers work together:
 
-**uv extraction cache** (within a build job). `uv pip install --target` extracts wheels into its internal cache, then hardlinks into the target directory. Overlapping packages across builds are extracted once. The cache MUST be on the same filesystem as the output — hardlinks cannot cross device boundaries. uv silently falls back to full copies on cross-device, wasting 7+ GB with no error or warning. `install_packages.py` checks `nlink > 1` after install and warns if hardlinks didn't work.
+**uv extraction cache** (within a build job). `uv pip install --target` extracts wheels into its internal cache, then hardlinks into the target directory. Overlapping packages across builds are extracted once. The cache MUST be on the same filesystem as the output — hardlinks cannot cross device boundaries. uv silently falls back to full copies on cross-device, wasting 7+ GB with no error or warning. `install_packages.py` checks `nlink > 1` after install and hard-fails if hardlinks didn't work.
 
 **Bazel action cache** (across builds). The `PythonicInstall` action's cache key is pyproject.toml content + all wheel files from `@pypi`. Conservative — any wheel change invalidates all package directories — but acceptable because wheels change when `requirements.txt` changes (rare), and rebuilds take ~2-5s with the uv cache.
 
@@ -693,7 +696,7 @@ uv's `--link-mode=hardlink` silently falls back to full copies when cache and ve
 
 Verified across four scenarios: same-device = 99% hardlink ratio, cross-device = 0%. Cross-venv dedup also verified: three identical venvs on the same filesystem, `nlink` climbs 2->3->4, total disk 0.28 GB instead of 0.70 GB (60% savings).
 
-Mitigation: `UV_CACHE_DIR` and `sandbox_writable_path` must point to the same filesystem as Bazel's output base. `install_packages.py` verifies hardlinks after install and warns if they didn't work.
+Mitigation: `UV_CACHE_DIR` and `sandbox_writable_path` must point to the same filesystem as Bazel's output base. `install_packages.py` verifies hardlinks after install and hard-fails if they didn't work.
 
 ---
 
