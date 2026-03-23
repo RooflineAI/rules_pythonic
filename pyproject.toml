@@ -1,0 +1,11 @@
+[project]
+name = "rules-pythonic-dev"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["pythonic/private"]

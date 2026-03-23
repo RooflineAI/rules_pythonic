@@ -9,8 +9,8 @@ rules_pythonic is a Bazel ruleset for Python that replaces ~7,000 lines of Starl
 ## Build Commands
 
 ```bash
-bazel test //pythonic/tests:*         # Starlark unit tests
-bazel test //e2e/smoke:*              # End-to-end smoke test
+uv run pytest pythonic/private/tests/  # Python unit tests (fast, no Bazel)
+bazel test //e2e/smoke:*              # End-to-end smoke test (requires user.bazelrc)
 bazel run //:gazelle                  # Regenerate bzl_library targets
 bazel mod tidy --lockfile_mode=refresh  # Update MODULE.bazel.lock
 ```

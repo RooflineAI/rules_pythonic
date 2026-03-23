@@ -37,7 +37,7 @@ def extract_dep_name(dep_spec: str) -> str:
     Examples: "torch>=2.1" -> "torch", "foo[bar]>=1.0" -> "foo",
               "pkg ; python_version >= '3.11'" -> "pkg"
     """
-    for ch in "><=!;[":
+    for ch in "><=!;[@":
         dep_spec = dep_spec.split(ch)[0]
     return dep_spec.strip()
 

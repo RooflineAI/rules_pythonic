@@ -14,6 +14,8 @@ _derisk/first_party/
 _derisk/namespace_test/
 _derisk/simulated_runfiles/
 _derisk/test_venv/
+.venv/
+.pytest_cache/
 __pycache__/
 *.pyc
 *.whl
