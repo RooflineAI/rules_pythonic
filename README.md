@@ -1,52 +1,122 @@
-# Template for Bazel rules
+# rules_pythonic
 
-Copy this template to create a Bazel ruleset.
+Bazel rules for Python that delegate to `uv` and `pyproject.toml` instead of
+reimplementing packaging in Starlark.
 
-Features:
+Python packaging has grown increasingly capable — `uv` handles platform wheel
+selection, dependency resolution, and installation faster than any prior tool.
+Meanwhile, `pyproject.toml` has become the universal standard for declaring
+project metadata and dependencies. The existing Bazel Python ecosystem
+(rules_python, rules_py, rules_pycross) predates these developments and
+necessarily reimplemented much of this functionality in Starlark and Rust.
 
-- follows the official style guide at https://bazel.build/rules/deploying
-- allows for both WORKSPACE.bazel and bzlmod (MODULE.bazel) usage
-- includes Bazel formatting as a pre-commit hook (using [buildifier])
-- includes API documentation generation
-- includes typical toolchain setup
-- CI configured with GitHub Actions
-- release using GitHub Actions just by pushing a tag
-- the release artifact doesn't need to be built by Bazel, but can still exclude files and stamp the version
+rules_pythonic builds on their foundation but takes a different approach:
+use standard Python tooling directly. Third-party dependencies stay in
+`pyproject.toml` where every Python tool already knows how to find them.
+`uv` handles installation and wheel building as Bazel actions. BUILD files
+declare only first-party relationships. A Python developer who has never
+used Bazel can read a rules_pythonic BUILD file and understand what it does.
 
-Ready to get started? Copy this repo, then
+## What it looks like
 
-1. search for "rules_pythonic" and replace with the name you'll use for your workspace
-1. search for "pythonicorg" and replace with GitHub org
-1. search for "pythonic", "Pythonic", "PYTHONIC" and replace with the language/tool your rules are for
-1. rename directory "pythonic" similarly
-1. run `pre-commit install` to get lints (see CONTRIBUTING.md)
-1. if you don't need to fetch platform-dependent tools, then remove anything toolchain-related.
-1. (optional) install the [Renovate app](https://github.com/apps/renovate) to get auto-PRs to keep the dependencies up-to-date.
-1. delete this section of the README (everything up to the SNIP).
+```starlark
+load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package", "pythonic_test")
 
-Optional: if you write tools for your rules to call, you should avoid toolchain dependencies for those tools leaking to all users.
-For example, https://github.com/aspect-build/rules_py actions rely on a couple of binaries written in Rust, but we don't want users to be forced to
-fetch a working Rust toolchain. Instead we want to ship pre-built binaries on our GH releases, and the ruleset fetches these as toolchains.
-See https://blog.aspect.build/releasing-bazel-rulesets-rust for information on how to do this.
-Note that users who _do_ want to build tools from source should still be able to do so, they just need to register a different toolchain earlier.
+pythonic_package(
+    name = "mypackage",
+    pyproject = "pyproject.toml",
+    src_root = "src",
+    srcs = glob(["src/**/*.py"]),
+    deps = [":other_package"],
+)
 
----- SNIP ----
+# Fast iteration: source directly on PYTHONPATH
+pythonic_test(
+    name = "test_greeting",
+    srcs = ["tests/test_greeting.py"],
+    deps = [":mypackage"],
+)
 
-# Bazel rules for pythonic
+# Artifact testing: install the built .whl, catch packaging bugs before deploy
+pythonic_test(
+    name = "test_greeting_wheel",
+    srcs = ["tests/test_greeting.py"],
+    deps = [":mypackage.wheel"],
+)
+```
 
-## Installation
+Third-party deps (`six`, `torch`, `pytest`) go in `pyproject.toml`.
+First-party deps (your own packages) go in BUILD `deps`. `uv` handles
+wheel installation and platform selection at build time. There is no
+Starlark reimplementation of packaging.
 
-From the release you wish to use:
-<https://github.com/pythonicorg/rules_pythonic/releases>
-copy the WORKSPACE snippet into your `WORKSPACE` file.
+The [e2e/smoke](e2e/smoke/) directory is a complete working example you can
+clone and run.
 
-To use a commit rather than a release, you can point at any SHA of the repo.
+## How it works
 
-For example to use commit `abc123`:
+Four rules, one provider:
 
-1. Replace `url = "https://github.com/pythonicorg/rules_pythonic/releases/download/v0.1.0/rules_pythonic-v0.1.0.tar.gz"` with a GitHub-provided source archive like `url = "https://github.com/pythonicorg/rules_pythonic/archive/abc123.tar.gz"`
-1. Replace `strip_prefix = "rules_pythonic-0.1.0"` with `strip_prefix = "rules_pythonic-abc123"`
-1. Update the `sha256`. The easiest way to do this is to comment out the line, then Bazel will
-   print a message with the correct value. Note that GitHub source archives don't have a strong
-   guarantee on the sha256 stability, see
-   <https://github.blog/2023-02-21-update-on-the-future-stability-of-source-code-archives-and-hashes/>
+- **`pythonic_package`** — declares a Python package. Creates `:name` (source
+  on PYTHONPATH) and `:name.wheel` (built `.whl` via `uv build`).
+- **`pythonic_test`** — runs pytest by default. Override with `main` or
+  `main_module`.
+- **`pythonic_binary`** — executable target. Exactly one of `main` or
+  `main_module` required.
+- **`pythonic_files`** — importable Python files without a `pyproject.toml`.
+  Leaf node, no third-party deps.
+- **`PythonicPackageInfo`** — provider with `package_name`, `src_root`, `srcs`,
+  `pyproject`, `wheel`, `first_party_deps`.
+
+All loaded from `@rules_pythonic//pythonic:defs.bzl`.
+
+See [docs/DESIGN.md](docs/DESIGN.md) for the full rationale and
+[docs/TECHNICAL_REFERENCE.md](docs/TECHNICAL_REFERENCE.md) for attribute
+details.
+
+## Setup
+
+Requires Bazel 8+. Add to `MODULE.bazel`:
+
+```starlark
+bazel_dep(name = "rules_pythonic", version = "0.0.1")
+bazel_dep(name = "rules_python", version = "1.9.0")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.11")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "pypi",
+    python_version = "3.11",
+    requirements_lock = "//:requirements.txt",
+)
+use_repo(pip, "pypi")
+```
+
+Add the wheel filegroup to your root `BUILD`:
+
+```starlark
+load("@pypi//:requirements.bzl", "all_whl_requirements")
+
+filegroup(
+    name = "all_wheels",
+    srcs = all_whl_requirements,
+    visibility = ["//visibility:public"],
+)
+```
+
+Configure your uv cache in `.bazelrc` (both lines required):
+
+```
+build --action_env=UV_CACHE_DIR=/absolute/path/to/uv/cache
+build --sandbox_writable_path=/absolute/path/to/uv/cache
+```
+
+The cache must be on the same filesystem as Bazel's output base so `uv` can
+hardlink wheels instead of copying them. Without this, the build fails with
+setup instructions.
+
+## License
+
+Apache 2.0
