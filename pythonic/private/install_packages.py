@@ -181,20 +181,35 @@ def _require_uv_cache_dir() -> str:
     sys.exit(1)
 
 
-def install_packages(
-    uv_bin: str,
-    python_bin: str,
-    output_dir: str,
+def resolve_wheels(
     wheel_files: list[str],
     pyproject_paths: list[str],
     first_party_packages: list[str],
+    first_party_wheel_dirs: list[str],
     extras: list[str],
-) -> None:
-    """Install third-party wheels into a flat target directory."""
-    target_dir = pathlib.Path(output_dir)
-    cache_dir = _require_uv_cache_dir()
+) -> list[str]:
+    """Validate deps and return the full list of .whl paths to install.
 
-    available_wheels = build_wheel_index(wheel_files)
+    Raises:
+        SystemExit: If any declared dependency is unsatisfiable, or if a
+            first-party wheel directory contains no .whl files.
+    """
+    # Wheel filenames include the version from pyproject.toml, so they aren't
+    # known at Bazel analysis time. Glob at execution time.
+    fp_wheels: list[str] = []
+    for d in first_party_wheel_dirs:
+        found = list(pathlib.Path(d).glob("*.whl"))
+        if not found:
+            print(
+                f"ERROR: first-party wheel directory contains no .whl files: {d}\n"
+                f"       The upstream .wheel target may have failed to produce output.\n"
+                f"       Try: bazel build <package>.wheel",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        fp_wheels.extend(str(w) for w in found)
+
+    available_wheels = build_wheel_index(wheel_files + fp_wheels)
     first_party_names = {normalize_name(p) for p in first_party_packages}
     declared_deps = collect_deps(pyproject_paths, extras)
     missing = validate_deps(declared_deps, available_wheels, first_party_names)
@@ -209,10 +224,31 @@ def install_packages(
             )
         sys.exit(1)
 
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    # wheel_files may contain non-.whl paths if the filegroup includes metadata
     wheels_to_install = [w for w in wheel_files if w.endswith(".whl")]
+    wheels_to_install.extend(fp_wheels)
+    return wheels_to_install
+
+
+def install_packages(
+    uv_bin: str,
+    python_bin: str,
+    output_dir: str,
+    wheel_files: list[str],
+    pyproject_paths: list[str],
+    first_party_packages: list[str],
+    first_party_wheel_dirs: list[str],
+    extras: list[str],
+) -> None:
+    """Install third-party and first-party wheels into a flat target directory."""
+    target_dir = pathlib.Path(output_dir)
+    cache_dir = _require_uv_cache_dir()
+
+    wheels_to_install = resolve_wheels(
+        wheel_files, pyproject_paths, first_party_packages,
+        first_party_wheel_dirs, extras,
+    )
+
+    target_dir.mkdir(parents=True, exist_ok=True)
     if wheels_to_install:
         subprocess.check_call([
             uv_bin, "pip", "install",
@@ -238,6 +274,7 @@ def main() -> None:
     parser.add_argument("--wheel-files", nargs="*", default=[], help="Paths to .whl files")
     parser.add_argument("--pyprojects", nargs="*", default=[], help="Paths to pyproject.toml files")
     parser.add_argument("--first-party-packages", nargs="*", default=[], help="Package names to skip (on PYTHONPATH)")
+    parser.add_argument("--first-party-wheel-dirs", action="append", default=[], help="Directory containing a first-party .whl file to install")
     parser.add_argument("--extras", nargs="*", default=[], help="Optional dependency groups to include")
     args = parser.parse_args()
 
@@ -248,6 +285,7 @@ def main() -> None:
         wheel_files=args.wheel_files,
         pyproject_paths=args.pyprojects,
         first_party_packages=args.first_party_packages,
+        first_party_wheel_dirs=args.first_party_wheel_dirs,
         extras=args.extras,
     )
 

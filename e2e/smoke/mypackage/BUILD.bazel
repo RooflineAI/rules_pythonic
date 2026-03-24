@@ -13,6 +13,12 @@ pythonic_binary(
     deps = [":mypackage"],
 )
 
+pythonic_binary(
+    name = "hello_wheel",
+    main_module = "mypackage.greeting",
+    deps = [":mypackage.wheel"],
+)
+
 pythonic_files(
     name = "test_helpers",
     srcs = glob(["helpers/**/*.py"]),
@@ -29,4 +35,10 @@ pythonic_test(
     name = "test_with_helpers",
     srcs = ["tests/test_with_helpers.py"],
     deps = [":mypackage", ":test_helpers"],
+)
+
+pythonic_test(
+    name = "test_wheel_install",
+    srcs = ["tests/test_wheel_install.py"],
+    deps = [":mypackage.wheel"],
 )

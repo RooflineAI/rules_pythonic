@@ -11,6 +11,7 @@ from install_packages import (
     collect_deps,
     extract_dep_name,
     normalize_name,
+    resolve_wheels,
     validate_deps,
     verify_hardlinks,
     _check_python_version,
@@ -197,6 +198,86 @@ class TestValidateDeps:
             {"six": pathlib.Path("s.whl")},
             set(),
         ) == ["nonexistent"]
+
+
+# --- resolve_wheels (first-party wheel integration) ---
+
+class TestResolveWheels:
+    def test_first_party_wheel_satisfies_declared_dep(self, tmp_path):
+        """A dep in pyproject.toml can be satisfied by a first-party .wheel
+        target instead of an @pypi wheel or a source-path skip."""
+        pp = _write_pyproject(tmp_path / "pyproject.toml", """\
+            [project]
+            name = "consumer"
+            dependencies = ["mypackage"]
+        """)
+        wheel_dir = tmp_path / "mypackage.wheel"
+        wheel_dir.mkdir()
+        whl = wheel_dir / "mypackage-0.1.0-py3-none-any.whl"
+        whl.touch()
+
+        result = resolve_wheels(
+            wheel_files=[],
+            pyproject_paths=[pp],
+            first_party_packages=[],
+            first_party_wheel_dirs=[str(wheel_dir)],
+            extras=[],
+        )
+        assert str(whl) in result
+
+    def test_first_party_and_third_party_merged(self, tmp_path):
+        """Both third-party and first-party wheels end up in the install list."""
+        pp = _write_pyproject(tmp_path / "pyproject.toml", """\
+            [project]
+            name = "consumer"
+            dependencies = ["six", "mypackage"]
+        """)
+        six_whl = tmp_path / "six-1.17.0-py3-none-any.whl"
+        six_whl.touch()
+        wheel_dir = tmp_path / "mypackage.wheel"
+        wheel_dir.mkdir()
+        fp_whl = wheel_dir / "mypackage-0.1.0-py3-none-any.whl"
+        fp_whl.touch()
+
+        result = resolve_wheels(
+            wheel_files=[str(six_whl)],
+            pyproject_paths=[pp],
+            first_party_packages=[],
+            first_party_wheel_dirs=[str(wheel_dir)],
+            extras=[],
+        )
+        assert str(six_whl) in result
+        assert str(fp_whl) in result
+
+    def test_empty_wheel_dir_fails(self, tmp_path):
+        """An empty wheel dir means the upstream .wheel build produced nothing."""
+        wheel_dir = tmp_path / "broken.wheel"
+        wheel_dir.mkdir()
+
+        with pytest.raises(SystemExit):
+            resolve_wheels(
+                wheel_files=[],
+                pyproject_paths=[],
+                first_party_packages=[],
+                first_party_wheel_dirs=[str(wheel_dir)],
+                extras=[],
+            )
+
+    def test_source_dep_skipped_not_installed(self, tmp_path):
+        """Source-path deps (first_party_packages) are excluded from install."""
+        pp = _write_pyproject(tmp_path / "pyproject.toml", """\
+            [project]
+            name = "consumer"
+            dependencies = ["libcore"]
+        """)
+        result = resolve_wheels(
+            wheel_files=[],
+            pyproject_paths=[pp],
+            first_party_packages=["libcore"],
+            first_party_wheel_dirs=[],
+            extras=[],
+        )
+        assert result == []
 
 
 # --- _check_python_version ---

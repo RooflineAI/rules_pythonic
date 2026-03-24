@@ -37,12 +37,12 @@ set -o errexit -o nounset -o pipefail
 # After substitution, a concrete launcher looks like:
 #   PYTHON="$(rlocation rules_python++python+python_3_11/bin/python3)"
 #   PACKAGES_DIR="$(rlocation _main/mypackage/test_greeting_packages)"
-#   export PYTHONPATH="$(rlocation _main/mypackage/src)":"${PACKAGES_DIR}"
+#   export PYTHONPATH="$(rlocation _main/mypackage/src)":${PACKAGES_DIR}
 #   exec "${PYTHON}" -B -s "$(rlocation rules_pythonic+/.../pythonic_pytest_runner.py)" "$(rlocation _main/.../test_foo.py)" "$@"
 PYTHON="$(rlocation {{PYTHON_TOOLCHAIN}})"
 PACKAGES_DIR="$(rlocation {{PACKAGES_DIR}})"
 
-export PYTHONPATH="{{FIRST_PARTY_PYTHONPATH}}:${PACKAGES_DIR}"
+export PYTHONPATH="{{FIRST_PARTY_PYTHONPATH}}${PACKAGES_DIR}"
 
 {{PYTHON_ENV}}
 

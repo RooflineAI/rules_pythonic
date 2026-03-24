@@ -4,17 +4,22 @@ load(":providers.bzl", "PythonicPackageInfo")
 
 _PY_TOOLCHAIN = "@bazel_tools//tools/python:toolchain_type"
 
-# --- Package rule (source-dep path) ---
+def _workspace_src_root(ctx):
+    """Compute workspace-relative src_root from BUILD directory and src_root attr.
 
-def _pythonic_package_impl(ctx):
-    # Combine the BUILD file's directory with the user's src_root to get
-    # the full workspace-relative path. For a BUILD at packages/attic/ with
-    # src_root="src", this produces "packages/attic/src". For a BUILD at the
-    # workspace root with src_root="src", ctx.label.package is "" so we
-    # use src_root directly.
+    For a BUILD at packages/attic/ with src_root="src", this produces
+    "packages/attic/src". For a BUILD at the workspace root with
+    src_root="src", ctx.label.package is "" so we use src_root directly.
+    """
     src_root = ctx.label.package
     if ctx.attr.src_root and ctx.attr.src_root != ".":
         src_root = src_root + "/" + ctx.attr.src_root if src_root else ctx.attr.src_root
+    return src_root
+
+# --- Package rule (source-dep path) ---
+
+def _pythonic_package_impl(ctx):
+    src_root = _workspace_src_root(ctx)
 
     direct_deps = []
     transitive_dep_sets = []
@@ -121,7 +126,30 @@ def _pythonic_wheel_impl(ctx):
         use_default_shell_env = True,
     )
 
-    return [DefaultInfo(files = depset([wheel_dir]))]
+    # Build first_party_deps from deps, mirroring _pythonic_package_impl.
+    direct_deps = []
+    transitive_dep_sets = []
+    for dep in ctx.attr.deps:
+        info = dep[PythonicPackageInfo]
+        direct_deps.append(info)
+        transitive_dep_sets.append(info.first_party_deps)
+
+    transitive_deps = depset(
+        direct = direct_deps,
+        transitive = transitive_dep_sets,
+    )
+
+    return [
+        PythonicPackageInfo(
+            package_name = ctx.label.name.removesuffix(".wheel"),
+            src_root = _workspace_src_root(ctx),
+            srcs = depset(ctx.files.srcs),
+            pyproject = ctx.file.pyproject,
+            wheel = wheel_dir,
+            first_party_deps = transitive_deps,
+        ),
+        DefaultInfo(files = depset([wheel_dir])),
+    ]
 
 _pythonic_wheel = rule(
     implementation = _pythonic_wheel_impl,
@@ -130,8 +158,17 @@ _pythonic_wheel = rule(
             allow_single_file = [".toml"],
             mandatory = True,
         ),
+        "src_root": attr.string(
+            mandatory = True,
+            doc = "Source root relative to this package. Must match the source " +
+                  "target so both variants produce the same PythonicPackageInfo.",
+        ),
         "srcs": attr.label_list(
             allow_files = True,
+        ),
+        "deps": attr.label_list(
+            providers = [PythonicPackageInfo],
+            doc = "First-party cross-package deps. Must match the source target.",
         ),
         "src_prefix": attr.label(
             allow_single_file = True,
@@ -188,7 +225,9 @@ def pythonic_package(name, wheels = ["//:all_wheels"], src_prefix = None, **kwar
     wheel_kwargs = {
         "name": name + ".wheel",
         "pyproject": kwargs.get("pyproject"),
+        "src_root": kwargs.get("src_root", "."),
         "srcs": kwargs.get("srcs", []),
+        "deps": kwargs.get("deps", []),
         "wheels": wheels,
         "tags": ["manual"],
     }

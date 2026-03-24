@@ -47,13 +47,15 @@ def _pythonic_binary_impl(ctx):
     args.add_all("--wheel-files", wheels)
     args.add_all("--pyprojects", dep_info.pyprojects)
     args.add_all("--first-party-packages", dep_info.first_party_names)
+    for fp_wheel_dir in dep_info.first_party_wheel_dirs:
+        args.add("--first-party-wheel-dirs", fp_wheel_dir.path)
     args.add_all("--extras", ctx.attr.extras)
 
     ctx.actions.run(
         executable = python,
         arguments = [args],
         inputs = depset(
-            direct = dep_info.pyprojects + wheels + [ctx.file._install_packages],
+            direct = dep_info.pyprojects + wheels + dep_info.first_party_wheel_dirs + [ctx.file._install_packages],
             transitive = [py_runtime.files],
         ),
         outputs = [packages_dir],
