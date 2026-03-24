@@ -1,0 +1,26 @@
+"PyTorch e2e test for rules_pythonic — platform-specific wheels."
+
+module(name = "pytorch_e2e")
+
+bazel_dep(name = "rules_pythonic", version = "0.0.0")
+bazel_dep(name = "rules_python", version = "1.9.0")
+
+local_path_override(
+    module_name = "rules_pythonic",
+    path = "../..",
+)
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.11")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "pypi",
+    python_version = "3.11",
+    requirements_by_platform = {
+        "//:requirements_linux_x86_64.txt": "linux_x86_64",
+        "//:requirements_linux_aarch64.txt": "linux_aarch64",
+        "//:requirements_macos_arm64.txt": "osx_aarch64",
+    },
+)
+use_repo(pip, "pypi")

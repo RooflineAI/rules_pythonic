@@ -1,0 +1,14 @@
+load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package", "pythonic_test")
+
+pythonic_package(
+    name = "model",
+    pyproject = "pyproject.toml",
+    src_root = "src",
+    srcs = glob(["src/**/*.py"]),
+)
+
+pythonic_test(
+    name = "test_export",
+    srcs = ["tests/test_export.py"],
+    deps = [":model"],
+)
