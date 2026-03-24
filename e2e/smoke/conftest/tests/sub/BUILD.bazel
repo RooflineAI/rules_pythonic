@@ -1,0 +1,15 @@
+load("@rules_pythonic//pythonic:defs.bzl", "pythonic_test")
+
+# Child conftest filegroup includes the parent — this is the pattern
+# rules_pythonic users follow for multi-level conftest discovery.
+filegroup(
+    name = "conftest",
+    srcs = ["conftest.py", "//conftest/tests:conftest"],
+)
+
+pythonic_test(
+    name = "test_conftest",
+    srcs = ["test_conftest.py"],
+    deps = ["//conftest:conftest_pkg"],
+    conftest = ":conftest",
+)

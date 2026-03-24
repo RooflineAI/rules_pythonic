@@ -1,0 +1,23 @@
+load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package", "pythonic_test")
+
+pythonic_package(
+    name = "extras_pkg",
+    pyproject = "pyproject.toml",
+    src_root = "src",
+    srcs = glob(["src/**/*.py"]),
+)
+
+# Requests the "analysis" extras group — tomli gets installed.
+pythonic_test(
+    name = "test_with_extras",
+    srcs = ["tests/test_extras.py"],
+    deps = [":extras_pkg"],
+    extras = ["test", "analysis"],
+)
+
+# Default extras=["test"] only — tomli should NOT be installed.
+pythonic_test(
+    name = "test_without_extras",
+    srcs = ["tests/test_no_extras.py"],
+    deps = [":extras_pkg"],
+)

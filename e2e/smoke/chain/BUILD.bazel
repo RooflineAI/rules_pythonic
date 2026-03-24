@@ -1,0 +1,30 @@
+load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package", "pythonic_test")
+
+pythonic_package(
+    name = "pkg_c",
+    pyproject = "pkg_c/pyproject.toml",
+    src_root = "pkg_c/src",
+    srcs = glob(["pkg_c/src/**/*.py"]),
+)
+
+pythonic_package(
+    name = "pkg_b",
+    pyproject = "pkg_b/pyproject.toml",
+    src_root = "pkg_b/src",
+    srcs = glob(["pkg_b/src/**/*.py"]),
+    deps = [":pkg_c"],
+)
+
+pythonic_package(
+    name = "pkg_a",
+    pyproject = "pkg_a/pyproject.toml",
+    src_root = "pkg_a/src",
+    srcs = glob(["pkg_a/src/**/*.py"]),
+    deps = [":pkg_b"],
+)
+
+pythonic_test(
+    name = "test_chain",
+    srcs = ["pkg_a/tests/test_chain.py"],
+    deps = [":pkg_a"],
+)

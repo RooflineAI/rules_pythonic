@@ -114,8 +114,8 @@ def _pythonic_test_impl(ctx):
     runfiles_files = [packages_dir, ctx.file._pytest_runner] + ctx.files.srcs + ctx.files.data
     if ctx.attr.main:
         runfiles_files.append(ctx.file.main)
-    if ctx.attr.pytest_root:
-        runfiles_files.extend(ctx.files.pytest_root)
+    if ctx.attr.conftest:
+        runfiles_files.extend(ctx.files.conftest)
 
     runfiles = ctx.runfiles(
         files = runfiles_files,
@@ -145,7 +145,7 @@ _pythonic_inner_test = rule(
         "test_env": attr.string_dict(doc = "Environment variables passed to the test."),
         "interpreter_args": attr.string_list(doc = "Extra flags for the Python interpreter."),
         "data": attr.label_list(allow_files = True, doc = "Additional runtime data files."),
-        "pytest_root": attr.label(allow_files = True, doc = "Filegroup with conftest.py chain for pytest discovery."),
+        "conftest": attr.label(allow_files = True, doc = "Filegroup with conftest.py chain for pytest discovery."),
         "_uv": attr.label(
             default = "@multitool//tools/uv",
             executable = True,
@@ -194,7 +194,7 @@ def pythonic_test(name, wheels = ["//:all_wheels"], extras = ["test"], env = {},
         env: Environment variables. Remapped to test_env because Bazel auto-adds
             an 'env' attr on test rules.
         **kwargs: All other attrs forwarded to the rule (srcs, deps, main,
-            main_module, interpreter_args, data, pytest_root, size, timeout, tags).
+            main_module, interpreter_args, data, conftest, size, timeout, tags).
     """
     _pythonic_inner_test(
         name = name,

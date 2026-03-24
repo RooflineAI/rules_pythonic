@@ -279,62 +279,56 @@ args.extend(["--rootdir", repo_root])
 
 No changes to the launcher template. The runner always knows the repo root is `$RUNFILES_DIR/_main`.
 
-**Part 2: `pytest_root` filegroup chain gets conftest files into runfiles.** Each directory with a conftest.py defines a `pytest_root` filegroup that includes its own conftest and chains to its parent:
+**Part 2: `conftest` filegroup chain gets conftest files into runfiles.** Each directory with a conftest.py defines a filegroup that includes its own conftest and chains to its parent:
 
 ```starlark
 # /BUILD.bazel (repo root — the chain ends here)
 filegroup(
-    name = "pytest_root",
+    name = "conftest",
     srcs = ["conftest.py", "pyproject.toml"],
     visibility = ["//visibility:public"],
 )
 
 # packages/BUILD.bazel (chains to parent)
 filegroup(
-    name = "pytest_root",
-    srcs = ["conftest.py", "//:pytest_root"],
+    name = "conftest",
+    srcs = ["conftest.py", "//:conftest"],
     visibility = ["//visibility:public"],
 )
 
 # packages/ml/BUILD.bazel (chains to parent)
 filegroup(
-    name = "pytest_root",
-    srcs = ["conftest.py", "//packages:pytest_root"],
+    name = "conftest",
+    srcs = ["conftest.py", "//packages:conftest"],
     visibility = ["//visibility:public"],
 )
 ```
 
 Each level knows its parent. Adding a new intermediate level only touches one BUILD file. The chain mirrors pytest's own walk-up model — a child inherits from its parents.
 
-**Part 3: Auto-discovery in the `pythonic_test` macro.** The macro checks if `:pytest_root` exists in the current package and uses it automatically:
+**Part 3: The `conftest` attribute on `pythonic_test`.** Pass the conftest filegroup chain to make conftest files available in runfiles:
 
 ```starlark
-def pythonic_test(name, srcs, deps, pytest_root = None, **kwargs):
-    if pytest_root == None:
-        if native.existing_rule("pytest_root"):
-            pytest_root = ":pytest_root"
-
-    data = list(kwargs.pop("data", []))
-    if pytest_root:
-        data.append(pytest_root)
-
-    _pythonic_test_rule(
-        name = name, srcs = srcs, deps = deps, data = data, **kwargs
-    )
+pythonic_test(
+    name = "test_training",
+    srcs = ["test_training.py"],
+    deps = [":ml"],
+    conftest = ":conftest",
+)
 ```
 
-When `:pytest_root` doesn't exist, it's silently skipped — tests still run, they just don't get parent conftest fixtures. An explicit `pytest_root = "//other:target"` overrides auto-discovery.
+Without `conftest`, tests still run but don't get parent conftest fixtures.
 
 ### Resulting runfiles tree
 
 ```
 $RUNFILES_DIR/_main/
-  conftest.py                    # from //:pytest_root
-  pyproject.toml                 # from //:pytest_root (pytest reads [tool.pytest.ini_options])
+  conftest.py                    # from //:conftest
+  pyproject.toml                 # from //:conftest (pytest reads [tool.pytest.ini_options])
   packages/
-    conftest.py                  # from //packages:pytest_root
+    conftest.py                  # from //packages:conftest
     ml/
-      conftest.py                # from //packages/ml:pytest_root
+      conftest.py                # from //packages/ml:conftest
       attic/
         conftest.py              # from macro auto-collection
         tests/

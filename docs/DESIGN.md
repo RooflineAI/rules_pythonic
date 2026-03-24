@@ -384,17 +384,17 @@ pytest discovers `conftest.py` by walking up from the test file toward `rootdir`
 
 1. **The runner always sets `--rootdir=$RUNFILES_DIR/_main`.** This anchors conftest discovery at the repo root, so pytest walks the full hierarchy.
 
-2. **`pytest_root` filegroup chains get conftest files into runfiles.** Each directory with a conftest.py defines a filegroup that includes its own conftest and chains to its parent:
+2. **`conftest` filegroup chains get conftest files into runfiles.** Each directory with a conftest.py defines a filegroup that includes its own conftest and chains to its parent:
 
 ```starlark
 # /BUILD.bazel (repo root — chain ends here)
-filegroup(name = "pytest_root", srcs = ["conftest.py", "pyproject.toml"], visibility = ["//visibility:public"])
+filegroup(name = "conftest", srcs = ["conftest.py", "pyproject.toml"], visibility = ["//visibility:public"])
 
 # packages/ml/BUILD.bazel (chains to parent)
-filegroup(name = "pytest_root", srcs = ["conftest.py", "//packages:pytest_root"], visibility = ["//visibility:public"])
+filegroup(name = "conftest", srcs = ["conftest.py", "//packages:conftest"], visibility = ["//visibility:public"])
 ```
 
-3. **Auto-discovery in the macro.** `pythonic_test` checks if `:pytest_root` exists in the current package and adds it to `data` automatically. Explicit `pytest_root = "//other:target"` overrides auto-discovery.
+3. **The `conftest` attribute on `pythonic_test` passes the chain.** `pythonic_test(conftest = ":conftest")` adds the filegroup to runfiles so pytest discovers the full conftest hierarchy.
 
 A side effect: with `--rootdir` at the repo root, pytest reads the root `pyproject.toml` for `[tool.pytest.ini_options]`, giving global pytest configuration. This is desirable.
 
@@ -732,7 +732,7 @@ All blockers were resolved via prototyping. These remain as nice-to-resolve duri
 2. **Test name collisions with nested directories.** Need a naming convention like `src.replace("/", "_").removesuffix(".py")`, or adopt flat test directories as a project convention.
 3. **RBE and uv cache.** Each remote machine has no shared uv cache — cold extraction per action. Slower but correct. Bazel action cache still avoids re-runs on cache hit.
 4. **Circular first-party deps.** Would surface as a Bazel-level circular dependency error — caught early with a clear message.
-5. **Conftest.py discovery in sandbox.** The `--rootdir` + `pytest_root` chain design is described in the Rule API section. All five derisking experiments passed (pytest 9.0.2). Remaining gap: experiments simulated runfiles with local symlinks rather than running inside an actual Bazel sandbox — verify with a real `bazel test` invocation during Phase 0.
+5. **Conftest.py discovery in sandbox.** The `--rootdir` + `conftest` chain design is described in the Rule API section. All five derisking experiments passed (pytest 9.0.2). Remaining gap: experiments simulated runfiles with local symlinks rather than running inside an actual Bazel sandbox — verify with a real `bazel test` invocation during Phase 0.
 
 ---
 

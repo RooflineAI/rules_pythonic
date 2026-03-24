@@ -1,0 +1,5 @@
+filegroup(
+    name = "conftest",
+    srcs = ["conftest.py"],
+    visibility = ["//conftest/tests:__subpackages__"],
+)
