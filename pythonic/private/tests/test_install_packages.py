@@ -15,6 +15,7 @@ from install_packages import (
     validate_deps,
     verify_hardlinks,
     _check_python_version,
+    _require_uv_cache_dir,
 )
 
 
@@ -278,6 +279,36 @@ class TestResolveWheels:
             extras=[],
         )
         assert result == []
+
+
+# --- error messages ---
+
+class TestErrorMessages:
+    def test_missing_dep_mentions_package_name(self, tmp_path, capsys):
+        pp = _write_pyproject(tmp_path / "pyproject.toml", """\
+            [project]
+            name = "consumer"
+            dependencies = ["nonexistent-pkg"]
+        """)
+        with pytest.raises(SystemExit):
+            resolve_wheels(
+                wheel_files=[],
+                pyproject_paths=[pp],
+                first_party_packages=[],
+                first_party_wheel_dirs=[],
+                extras=[],
+            )
+        err = capsys.readouterr().err
+        assert "nonexistent-pkg" in err
+        assert "requirements.txt" in err
+
+    def test_missing_uv_cache_dir(self, monkeypatch, capsys):
+        monkeypatch.delenv("UV_CACHE_DIR", raising=False)
+        with pytest.raises(SystemExit):
+            _require_uv_cache_dir()
+        err = capsys.readouterr().err
+        assert "UV_CACHE_DIR" in err
+        assert ".bazelrc" in err
 
 
 # --- _check_python_version ---
