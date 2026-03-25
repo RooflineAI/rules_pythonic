@@ -18,7 +18,7 @@ Replace ~7,000 lines of Starlark + Rust (rules_python wrappers, aspect_rules_py 
 - [The Solution](#the-solution) — three ideas, before/after
 - [Design Principles](#design-principles)
 - [Architecture](#architecture) — build-time flow, runfiles layout, dependency classification
-- [Rule API](#rule-api) — pythonic_package, pythonic_test, pythonic_binary, pythonic_files
+- [Rule API](#rule-api) — pythonic_package, pythonic_test, pythonic_binary, pythonic_files, pythonic_devenv
 - [Multi-Version Python](#multi-version-python)
 - [Caching Strategy](#caching-strategy)
 - [Monorepo pyproject.toml Layout](#monorepo-pyprojecttoml-layout)
@@ -377,6 +377,36 @@ It's a leaf node: no `deps`, no `pyproject`, no `.wheel` target. Returns `Python
 No file type filter on `srcs` — Python packages contain `.py`, `.so`, `.pyi`, `.json`, and more. The user controls inclusion via `glob()` patterns.
 
 If code eventually needs dependencies or a wheel, the upgrade path is: add a 3-line `pyproject.toml` and switch to `pythonic_package`. Code with dependencies is a package.
+
+### pythonic_devenv
+
+Creates a Python venv for IDE completion, type checking, and interactive development. `bazel run` the target to create or update the venv.
+
+```starlark
+pythonic_devenv(
+    name = "ide",
+    deps = [":attic", "//packages/search:search"],
+    wheels = ["//:all_wheels"],       # hermetic: third-party from @pypi
+    extras = ["dev", "test"],
+)
+```
+
+Two modes depending on whether `wheels` is provided:
+
+| | **Hermetic** (`wheels` set) | **Resolving** (`wheels` omitted) |
+|---|---|---|
+| Third-party source | `@pypi` wheels, validated with `--no-index` | PyPI, optionally pinned by `constraints` |
+| Install order | Step 1: all wheels `--no-deps`. Step 2: editables with `--find-links` | Single `uv pip install -e` call |
+| When to use | CI, reproducible envs, matching Bazel exactly | Quick local dev setup |
+
+First-party packages are classified by their target type:
+
+- **Source targets** (`:attic`) get editable installs via `stage_symlink_tree` — the same staging mechanism used by wheel building. Edits to source files are visible to the IDE immediately.
+- **`.wheel` targets** (`:attic.wheel`) get installed as built wheels. Use this for assembled packages whose source is produced by Bazel (e.g. `copy_to_directory` output with C extensions).
+
+The staging approach is uniform: every editable package — whether vanilla or assembled — goes through `stage_symlink_tree`. For vanilla packages, the staging dir symlinks back to workspace source. For assembled packages, it symlinks to the TreeArtifact contents. The build backend (hatchling, setuptools) sees the same layout in both cases.
+
+Staging directories live inside the venv at `.pythonic_staging/` so they persist across reboots and get cleaned up when the venv is recreated.
 
 ### Conftest.py discovery in the sandbox
 

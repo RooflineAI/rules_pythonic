@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-rules_pythonic is a Bazel ruleset for Python that replaces ~7,000 lines of Starlark+Rust (rules_python, rules_py, rules_pycross) with ~665 lines. It delegates to standard Python tooling (`uv`, pytest, `pyproject.toml`) instead of reimplementing packaging in Starlark.
+rules_pythonic is a Bazel ruleset for Python that delegates to standard Python tooling (`uv`, pytest, `pyproject.toml`) instead of reimplementing packaging in Starlark.
 
 ## Build Commands
 
@@ -26,6 +26,7 @@ All exported from `pythonic/defs.bzl`:
 - **`pythonic_test(name, srcs, deps, ...)`** — Python test target. Runs pytest by default. Installs third-party deps via `uv pip install --target`.
 - **`pythonic_binary(name, main/main_module, deps, ...)`** — Executable Python target. Exactly one of `main` or `main_module` required.
 - **`pythonic_files(name, srcs, src_root)`** — Importable Python files without a pyproject.toml. Leaf node, no deps.
+- **`pythonic_devenv(name, deps, wheels, constraints, extras, venv_path)`** — Creates a Python venv for IDE use. `bazel run` the target to create or update the venv. Hermetic mode (wheels provided) or resolving mode (uv resolves from PyPI).
 - **`PythonicPackageInfo`** — Provider with fields: `package_name`, `src_root`, `srcs`, `pyproject`, `wheel`, `first_party_deps`.
 
 ## Architecture
@@ -45,9 +46,13 @@ Key files:
 - `pythonic/private/test.bzl` — `pythonic_test` rule
 - `pythonic/private/providers.bzl` — `PythonicPackageInfo` provider
 - `pythonic/private/install_packages.py` — Build action: installs third-party wheels
-- `pythonic/private/build_wheel.py` — Build action: stages symlink tree, delegates to `uv build --wheel`
+- `pythonic/private/build_wheel.py` — Build action: delegates to `uv build --wheel`
+- `pythonic/private/staging.py` — Shared utility: stages pyproject.toml + source into a symlink tree (used by wheel building and devenv)
+- `pythonic/private/devenv.bzl` — `pythonic_devenv` rule
+- `pythonic/private/setup_devenv.py` — Run-time action: creates venv, installs wheels and editable packages
 - `pythonic/private/pythonic_pytest_runner.py` — Bridges Bazel test protocol to pytest
 - `pythonic/private/pythonic_run.tmpl.sh` — Bash launcher template (shared by test and binary)
+- `pythonic/private/pythonic_devenv.tmpl.sh` — Bash launcher template for devenv
 
 ## Key Design Decisions
 

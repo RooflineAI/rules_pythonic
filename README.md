@@ -20,7 +20,7 @@ used Bazel can read a rules_pythonic BUILD file and understand what it does.
 ## What it looks like
 
 ```starlark
-load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package", "pythonic_test")
+load("@rules_pythonic//pythonic:defs.bzl", "pythonic_devenv", "pythonic_package", "pythonic_test")
 
 pythonic_package(
     name = "mypackage",
@@ -43,6 +43,13 @@ pythonic_test(
     srcs = ["tests/test_greeting.py"],
     deps = [":mypackage.wheel"],
 )
+
+# IDE dev environment: `bazel run //:ide` creates a venv with all deps
+pythonic_devenv(
+    name = "ide",
+    deps = [":mypackage"],
+    wheels = ["//:all_wheels"],
+)
 ```
 
 Third-party deps (`six`, `torch`, `pytest`) go in `pyproject.toml`.
@@ -55,7 +62,7 @@ clone and run.
 
 ## How it works
 
-Four rules, one provider:
+Five rules, one provider:
 
 - **`pythonic_package`** — declares a Python package. Creates `:name` (source
   on PYTHONPATH) and `:name.wheel` (built `.whl` via `uv build`).
@@ -65,6 +72,8 @@ Four rules, one provider:
   `main_module` required.
 - **`pythonic_files`** — importable Python files without a `pyproject.toml`.
   Leaf node, no third-party deps.
+- **`pythonic_devenv`** — creates a Python venv for IDE completion and type
+  checking. `bazel run` the target to create or update the venv.
 - **`PythonicPackageInfo`** — provider with `package_name`, `src_root`, `srcs`,
   `pyproject`, `wheel`, `first_party_deps`.
 
