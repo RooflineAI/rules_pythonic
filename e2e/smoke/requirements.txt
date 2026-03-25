@@ -4,6 +4,7 @@ iniconfig==2.0.0
 packaging==24.2
 pluggy==1.5.0
 hatchling==1.29.0
+editables==0.5
 pathspec==1.0.4
 trove-classifiers==2026.1.14.14
 tomli==2.2.1

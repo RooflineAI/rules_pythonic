@@ -6,6 +6,9 @@ exports_files(
         "install_packages.py",
         "pythonic_pytest_runner.py",
         "pythonic_run.tmpl.sh",
+        "setup_devenv.py",
+        "staging.py",
+        "pythonic_devenv.tmpl.sh",
     ],
     visibility = ["//pythonic:__subpackages__"],
 )
@@ -50,6 +53,16 @@ bzl_library(
 bzl_library(
     name = "test",
     srcs = ["test.bzl"],
+    visibility = ["//pythonic:__subpackages__"],
+    deps = [
+        ":common",
+        ":providers",
+    ],
+)
+
+bzl_library(
+    name = "devenv",
+    srcs = ["devenv.bzl"],
     visibility = ["//pythonic:__subpackages__"],
     deps = [
         ":common",

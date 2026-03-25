@@ -8,4 +8,8 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=7.0"]
+dev = [
+    "editables>=0.5",
+    "hatchling>=1.29.0",
+]
 

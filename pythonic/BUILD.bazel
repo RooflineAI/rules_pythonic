@@ -6,6 +6,7 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pythonic/private:binary",
+        "//pythonic/private:devenv",
         "//pythonic/private:files",
         "//pythonic/private:package",
         "//pythonic/private:providers",

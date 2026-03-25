@@ -5,6 +5,7 @@ pythonic_package(
     pyproject = "pyproject.toml",
     src_root = "src",
     srcs = glob(["src/**/*.py"]),
+    visibility = ["//:__pkg__"],
 )
 
 pythonic_test(

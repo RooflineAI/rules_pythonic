@@ -116,7 +116,7 @@ def _pythonic_wheel_impl(ctx):
         executable = python,
         arguments = [args],
         inputs = depset(
-            direct = [ctx.file.pyproject, ctx.file._build_wheel] + ctx.files.srcs + wheels,
+            direct = [ctx.file.pyproject, ctx.file._build_wheel, ctx.file._staging] + ctx.files.srcs + wheels,
             transitive = [py_runtime.files],
         ),
         outputs = [wheel_dir],
@@ -189,6 +189,10 @@ _pythonic_wheel = rule(
             default = "//pythonic/private:build_wheel.py",
             allow_single_file = True,
         ),
+        "_staging": attr.label(
+            default = "//pythonic/private:staging.py",
+            allow_single_file = True,
+        ),
     },
     toolchains = [_PY_TOOLCHAIN],
     doc = "Build a .whl file via uv build.",
@@ -230,6 +234,7 @@ def pythonic_package(name, wheels = ["//:all_wheels"], src_prefix = None, **kwar
         "deps": kwargs.get("deps", []),
         "wheels": wheels,
         "tags": ["manual"],
+        "visibility": kwargs.get("visibility"),
     }
     if src_prefix:
         wheel_kwargs["src_prefix"] = src_prefix

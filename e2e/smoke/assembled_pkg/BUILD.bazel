@@ -17,4 +17,5 @@ pythonic_package(
     src_root = ".",
     srcs = [":assembled_tree"],
     src_prefix = ":assembled_tree",
+    visibility = ["//:__pkg__"],
 )

@@ -6,10 +6,14 @@ cuda-pathfinder==1.4.4
     # via cuda-bindings
 cuda-toolkit==13.0.2
     # via torch
+editables==0.5
+    # via pytorch-e2e (pyproject.toml)
 filelock==3.25.2
     # via torch
 fsspec==2026.2.0
     # via torch
+hatchling==1.29.0
+    # via pytorch-e2e (pyproject.toml)
 iniconfig==2.3.0
     # via pytest
 jinja2==3.1.6
@@ -60,9 +64,15 @@ nvidia-nvshmem-cu13==3.4.5
 nvidia-nvtx==13.0.85
     # via cuda-toolkit
 packaging==26.0
-    # via pytest
+    # via
+    #   hatchling
+    #   pytest
+pathspec==1.0.4
+    # via hatchling
 pluggy==1.6.0
-    # via pytest
+    # via
+    #   hatchling
+    #   pytest
 pygments==2.19.2
     # via pytest
 pytest==9.0.2
@@ -75,5 +85,7 @@ torch==2.11.0
     # via pytorch-e2e (pyproject.toml)
 triton==3.6.0
     # via torch
+trove-classifiers==2026.1.14.14
+    # via hatchling
 typing-extensions==4.15.0
     # via torch
