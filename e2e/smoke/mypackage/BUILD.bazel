@@ -2,9 +2,9 @@ load("@rules_pythonic//pythonic:defs.bzl", "pythonic_binary", "pythonic_files", 
 
 pythonic_package(
     name = "mypackage",
+    srcs = glob(["src/**/*.py"]),
     pyproject = "pyproject.toml",
     src_root = "src",
-    srcs = glob(["src/**/*.py"]),
     visibility = ["//:__pkg__"],
 )
 
@@ -35,7 +35,10 @@ pythonic_test(
 pythonic_test(
     name = "test_with_helpers",
     srcs = ["tests/test_with_helpers.py"],
-    deps = [":mypackage", ":test_helpers"],
+    deps = [
+        ":mypackage",
+        ":test_helpers",
+    ],
 )
 
 pythonic_test(

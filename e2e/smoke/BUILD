@@ -14,36 +14,36 @@ filegroup(
 # assembled_pkg uses .wheel because its source is assembled by Bazel.
 pythonic_devenv(
     name = "devenv",
+    extras = ["test"],
+    wheels = ["//:all_wheels"],
     deps = [
         "//assembled_pkg:assembled_pkg.wheel",
         "//mypackage",
     ],
-    extras = ["test"],
-    wheels = ["//:all_wheels"],
 )
 
 # Resolving devenv: uv resolves third-party from PyPI, pinned by constraints.
 pythonic_devenv(
     name = "devenv_constrained",
+    constraints = "requirements.txt",
+    extras = ["test"],
+    venv_path = ".venv-constrained",
     deps = [
         "//assembled_pkg:assembled_pkg.wheel",
         "//mypackage",
     ],
-    constraints = "requirements.txt",
-    extras = ["test"],
-    venv_path = ".venv-constrained",
 )
 
 # Unconstrained devenv: uv resolves freely from PyPI. Quickest to set up,
 # but versions may drift from what Bazel uses.
 pythonic_devenv(
     name = "devenv_unconstrained",
+    extras = ["test"],
+    venv_path = ".venv-unconstrained",
     deps = [
         "//assembled_pkg:assembled_pkg.wheel",
         "//mypackage",
     ],
-    extras = ["test"],
-    venv_path = ".venv-unconstrained",
 )
 
 # Editable devenv for assembled_pkg: uses the source target (not .wheel),
@@ -51,11 +51,11 @@ pythonic_devenv(
 # input files propagate through the copy_to_directory symlinks.
 pythonic_devenv(
     name = "devenv_editable_assembled",
+    extras = ["test"],
+    venv_path = ".venv-editable-assembled",
+    wheels = ["//:all_wheels"],
     deps = [
         "//assembled_pkg",
         "//mypackage",
     ],
-    extras = ["test"],
-    venv_path = ".venv-editable-assembled",
-    wheels = ["//:all_wheels"],
 )

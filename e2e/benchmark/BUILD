@@ -1,6 +1,6 @@
+load("@aspect_rules_py//py:defs.bzl", "py_library", "py_test")
 load("@pypi//:requirements.bzl", "all_whl_requirements", "requirement")
 load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package", "pythonic_test")
-load("@aspect_rules_py//py:defs.bzl", "py_library", "py_test")
 
 filegroup(
     name = "all_wheels",
@@ -12,9 +12,9 @@ filegroup(
 
 pythonic_package(
     name = "mypackage_pythonic",
+    srcs = glob(["src/**/*.py"]),
     pyproject = "pyproject.toml",
     src_root = "src",
-    srcs = glob(["src/**/*.py"]),
 )
 
 pythonic_test(

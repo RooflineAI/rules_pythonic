@@ -2,8 +2,8 @@ load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package")
 
 pythonic_package(
     name = "conftest_pkg",
+    srcs = glob(["src/**/*.py"]),
     pyproject = "pyproject.toml",
     src_root = "src",
-    srcs = glob(["src/**/*.py"]),
     visibility = ["//conftest:__subpackages__"],
 )

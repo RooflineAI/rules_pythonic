@@ -63,6 +63,7 @@ def _collect_devenv_info(ctx, deps):
                 "pyproject": rlocation_path(ctx, info.pyproject),
                 "srcs": [rlocation_path(ctx, f) for f in srcs],
             })
+
             # Include the actual File objects in runfiles so they're
             # available at the rlocation paths written above.
             runfiles_inputs.append(info.pyproject)

@@ -2,24 +2,24 @@ load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package", "pythonic_test")
 
 pythonic_package(
     name = "pkg_c",
+    srcs = glob(["pkg_c/src/**/*.py"]),
     pyproject = "pkg_c/pyproject.toml",
     src_root = "pkg_c/src",
-    srcs = glob(["pkg_c/src/**/*.py"]),
 )
 
 pythonic_package(
     name = "pkg_b",
+    srcs = glob(["pkg_b/src/**/*.py"]),
     pyproject = "pkg_b/pyproject.toml",
     src_root = "pkg_b/src",
-    srcs = glob(["pkg_b/src/**/*.py"]),
     deps = [":pkg_c"],
 )
 
 pythonic_package(
     name = "pkg_a",
+    srcs = glob(["pkg_a/src/**/*.py"]),
     pyproject = "pkg_a/pyproject.toml",
     src_root = "pkg_a/src",
-    srcs = glob(["pkg_a/src/**/*.py"]),
     deps = [":pkg_b"],
 )
 

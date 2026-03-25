@@ -13,9 +13,9 @@ copy_to_directory(
 
 pythonic_package(
     name = "assembled_pkg",
-    pyproject = "pyproject.toml",
-    src_root = ".",
     srcs = [":assembled_tree"],
+    pyproject = "pyproject.toml",
     src_prefix = ":assembled_tree",
+    src_root = ".",
     visibility = ["//:__pkg__"],
 )
