@@ -83,6 +83,33 @@ See [docs/DESIGN.md](docs/DESIGN.md) for the full rationale and
 [docs/TECHNICAL_REFERENCE.md](docs/TECHNICAL_REFERENCE.md) for attribute
 details.
 
+## Dependency model
+
+Third-party dependencies flow through two layers:
+
+1. **`pyproject.toml`** declares _what_ each package needs (`[project].dependencies`
+   and `[project.optional-dependencies]`).
+2. **`requirements.txt`** pins _which versions_ get installed. It is fed to
+   `pip.parse()` in `MODULE.bazel`, which creates the `@pypi` hub repo containing
+   pre-resolved, platform-specific wheels.
+
+At build time, `install_packages.py` runs `uv pip install --no-deps --no-index` —
+it installs only what is already in `@pypi`, never contacts PyPI, and never
+resolves versions. The `pyproject.toml` entries are used only for **validation**:
+every declared dependency must exist either as a wheel in `@pypi` or as a
+first-party dep in `BUILD`.
+
+When these two layers diverge:
+
+- A dependency in `pyproject.toml` but not in `requirements.txt` fails the build
+  with a clear error.
+- A dependency in `requirements.txt` but not in `pyproject.toml` is silently
+  installed (all `@pypi` wheels are available to the action).
+
+To add a new third-party dependency: add it to `pyproject.toml`, regenerate
+the lockfile (e.g. `uv pip compile --all-packages -o requirements.txt`), then
+run `bazel mod tidy --lockfile_mode=refresh`.
+
 ## Setup
 
 Requires Bazel 8+. Add to `MODULE.bazel`:
