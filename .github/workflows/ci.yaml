@@ -19,7 +19,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.0.0
       - run: uv run pytest pythonic/private/tests/
   e2e-smoke:
     name: E2e smoke (${{ matrix.os }})
@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.0.0
       - run: uv sync
       - uses: pre-commit/action@v3.0.1
   # Stable job name for branch protection rules.
