@@ -1,5 +1,4 @@
 import torch
-
 from model import TinyModel
 
 

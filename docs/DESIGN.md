@@ -72,13 +72,13 @@ A code audit reveals the weight of this approach:
 
 ### Five structural problems
 
-| # | Problem | Symptom |
-|---|---------|---------|
-| 1 | **Reimplementation instead of delegation** | Dep resolution via `PyInfo.imports` depsets instead of a lock file. Package install via Rust symlink tool instead of `uv pip install`. Import paths via `.pth` files instead of `PYTHONPATH`. Each reimplementation is incomplete and opaque to Python developers. |
-| 2 | **Runtime overhead where there should be none** | Every `bazel test` creates a fresh venv (~63ms), processes `.pth` files (~24ms), creates symlinks — then throws it all away. Every test. Every time. Even when nothing changed. |
-| 3 | **Information flows backwards** | In standard Python, `pyproject.toml` is the source of truth. Here, metadata originates in BUILD files and flows through Starlark -> JSON -> TOML -> symlinks to produce standard formats. The source of truth is in the wrong place. |
-| 4 | **Abstraction layers that don't abstract** | `PyInfo.imports`, `VenvSymlinkEntry`, collision strategies, shim resolution — none of these have Python equivalents. When something breaks, the developer must understand both the Python packaging model *and* the Bazel reimplementation. |
-| 5 | **The namespace package problem** | `pip.parse()` puts `nvidia-cudnn-cu12` and `nvidia-cublas-cu12` in separate Bazel repos with separate `nvidia/` dirs. Making both importable requires a recursive directory merge algorithm — hundreds of lines to solve a problem that `pip install` into a single `site-packages/` handles automatically. |
+| #   | Problem                                         | Symptom                                                                                                                                                                                                                                                                                                     |
+| --- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Reimplementation instead of delegation**      | Dep resolution via `PyInfo.imports` depsets instead of a lock file. Package install via Rust symlink tool instead of `uv pip install`. Import paths via `.pth` files instead of `PYTHONPATH`. Each reimplementation is incomplete and opaque to Python developers.                                          |
+| 2   | **Runtime overhead where there should be none** | Every `bazel test` creates a fresh venv (~63ms), processes `.pth` files (~24ms), creates symlinks — then throws it all away. Every test. Every time. Even when nothing changed.                                                                                                                             |
+| 3   | **Information flows backwards**                 | In standard Python, `pyproject.toml` is the source of truth. Here, metadata originates in BUILD files and flows through Starlark -> JSON -> TOML -> symlinks to produce standard formats. The source of truth is in the wrong place.                                                                        |
+| 4   | **Abstraction layers that don't abstract**      | `PyInfo.imports`, `VenvSymlinkEntry`, collision strategies, shim resolution — none of these have Python equivalents. When something breaks, the developer must understand both the Python packaging model _and_ the Bazel reimplementation.                                                                 |
+| 5   | **The namespace package problem**               | `pip.parse()` puts `nvidia-cudnn-cu12` and `nvidia-cublas-cu12` in separate Bazel repos with separate `nvidia/` dirs. Making both importable requires a recursive directory merge algorithm — hundreds of lines to solve a problem that `pip install` into a single `site-packages/` handles automatically. |
 
 ---
 
@@ -210,12 +210,12 @@ Two build actions produce this: (1) `PythonicInstall` installs packages into a f
 
 The `pythonic_test` macro classifies each dep by its provider:
 
-| Dep | Provider | What happens |
-|---|---|---|
-| `:attic` | `PythonicPackageInfo` | Source root added to PYTHONPATH |
-| `:attic.wheel` | `DefaultInfo` (.whl) | Wheel installed into venv alongside third-party packages |
+| Dep            | Provider              | What happens                                             |
+| -------------- | --------------------- | -------------------------------------------------------- |
+| `:attic`       | `PythonicPackageInfo` | Source root added to PYTHONPATH                          |
+| `:attic.wheel` | `DefaultInfo` (.whl)  | Wheel installed into venv alongside third-party packages |
 
-The choice between source-on-PYTHONPATH (fast iteration, instant feedback) and wheel-in-venv (test the built artifact) is made by the *consumer*, not the package. A package with compiled extensions uses the `.wheel` target because there's no pure-source option.
+The choice between source-on-PYTHONPATH (fast iteration, instant feedback) and wheel-in-venv (test the built artifact) is made by the _consumer_, not the package. A package with compiled extensions uses the `.wheel` target because there's no pure-source option.
 
 Third-party deps are never in BUILD `deps`. They come from `pyproject.toml`, parsed by `install_packages.py` at build time. The script does three-way classification: match a wheel from `@pypi` (install it), match a first-party package name (skip it — handled via PYTHONPATH), or fail with an actionable error message.
 
@@ -225,13 +225,14 @@ Third-party deps are never in BUILD `deps`. They come from `pyproject.toml`, par
 
 With `uv pip install` into flat `site-packages/`, both packages install their files under a single `nvidia/` directory. Python's implicit namespace package mechanism (PEP 420, stable since Python 3.3) handles the rest. Verified at full CUDA scale: all 10 nvidia subpackages (cudnn, cublas, cuda_runtime, cuda_nvrtc, nvjitlink, cufft, cusparse, cusolver, nccl, nvtx) import correctly. No `LD_LIBRARY_PATH`, no `__init__.py`, no merge logic.
 
-The harder case also works: namespace packages split across *multiple* PYTHONPATH directories (first-party `nvidia.custom` on one path, third-party `nvidia.cudnn` on another). Python's `_NamespacePath` aggregates both roots automatically.
+The harder case also works: namespace packages split across _multiple_ PYTHONPATH directories (first-party `nvidia.custom` on one path, third-party `nvidia.cudnn` on another). Python's `_NamespacePath` aggregates both roots automatically.
 
 ### When things go wrong
 
 The design prioritizes clear error messages over silent degradation:
 
 **Missing dependency.** If `pyproject.toml` lists a package that isn't in `@pypi` and isn't a first-party dep, `install_packages.py` fails at build time:
+
 ```
 ERROR: package "requests" required by pyproject.toml but not found in @pypi wheels
        and not a first-party dep.
@@ -239,6 +240,7 @@ ERROR: package "requests" required by pyproject.toml but not found in @pypi whee
 ```
 
 **Broken hardlinks.** If `UV_CACHE_DIR` and the output directory are on different filesystems, `install_packages.py` detects `nlink=1` after install and fails immediately:
+
 ```
 ERROR: hardlinks not working — installed files have nlink=1.
   UV_CACHE_DIR=/path/to/uv/cache
@@ -251,6 +253,7 @@ ERROR: hardlinks not working — installed files have nlink=1.
 ```
 
 **Wrong Python version.** If the toolchain Python doesn't satisfy `requires-python` from `pyproject.toml`, the build fails before any installation:
+
 ```
 ERROR: packages/attic/pyproject.toml requires python >=3.11, but building with 3.10
 ```
@@ -393,11 +396,11 @@ pythonic_devenv(
 
 Two modes depending on whether `wheels` is provided:
 
-| | **Hermetic** (`wheels` set) | **Resolving** (`wheels` omitted) |
-|---|---|---|
-| Third-party source | `@pypi` wheels, validated with `--no-index` | PyPI, optionally pinned by `constraints` |
-| Install order | Step 1: all wheels `--no-deps`. Step 2: editables with `--find-links` | Single `uv pip install -e` call |
-| When to use | CI, reproducible envs, matching Bazel exactly | Quick local dev setup |
+|                    | **Hermetic** (`wheels` set)                                           | **Resolving** (`wheels` omitted)         |
+| ------------------ | --------------------------------------------------------------------- | ---------------------------------------- |
+| Third-party source | `@pypi` wheels, validated with `--no-index`                           | PyPI, optionally pinned by `constraints` |
+| Install order      | Step 1: all wheels `--no-deps`. Step 2: editables with `--find-links` | Single `uv pip install -e` call          |
+| When to use        | CI, reproducible envs, matching Bazel exactly                         | Quick local dev setup                    |
 
 First-party packages are classified by their target type:
 
@@ -461,12 +464,12 @@ Three layers work together:
 
 ### Rebuild costs (measured)
 
-| Change | What rebuilds | Time |
-|---|---|---|
-| Edit first-party source | Nothing (PYTHONPATH points to runfiles) | 0s |
-| Change @pypi dep version | All package TreeArtifacts | ~2-4s each |
-| Cached build (no changes) | Nothing | 0s |
-| Clean build (no uv cache) | Everything | ~46s (macOS) / ~17s (Linux) |
+| Change                    | What rebuilds                           | Time                        |
+| ------------------------- | --------------------------------------- | --------------------------- |
+| Edit first-party source   | Nothing (PYTHONPATH points to runfiles) | 0s                          |
+| Change @pypi dep version  | All package TreeArtifacts               | ~2-4s each                  |
+| Cached build (no changes) | Nothing                                 | 0s                          |
+| Clean build (no uv cache) | Everything                              | ~46s (macOS) / ~17s (Linux) |
 
 ---
 
@@ -629,13 +632,13 @@ pythonic_test(name = "test_gpu", srcs = [...], deps = [":attic"], extras = ["gpu
 
 The basic structure covers most monorepos. Five patterns handle increasing complexity, all validated with uv 0.9.22:
 
-| Pattern | When to use | Lock files | Complexity |
-|---|---|---|---|
-| 1. Single product | Default. Start here. | 1 | Minimal |
-| 2. Platform variants | GPU/CUDA variants via `[tool.uv] conflicts` | 1 | Low |
-| 3. Test folder deps | Extra test-only packages (locust, moto) join workspace | 1 | Low |
-| 4. Incompatible deps | Genuine version conflicts (pydantic 2.x vs 1.x) get separate workspaces + lock files | N | Medium |
-| 5. Combined | Patterns 2 + 4 together (rare) | N | High |
+| Pattern              | When to use                                                                          | Lock files | Complexity |
+| -------------------- | ------------------------------------------------------------------------------------ | ---------- | ---------- |
+| 1. Single product    | Default. Start here.                                                                 | 1          | Minimal    |
+| 2. Platform variants | GPU/CUDA variants via `[tool.uv] conflicts`                                          | 1          | Low        |
+| 3. Test folder deps  | Extra test-only packages (locust, moto) join workspace                               | 1          | Low        |
+| 4. Incompatible deps | Genuine version conflicts (pydantic 2.x vs 1.x) get separate workspaces + lock files | N          | Medium     |
+| 5. Combined          | Patterns 2 + 4 together (rare)                                                       | N          | High       |
 
 Pattern 2 uses `[tool.uv] conflicts` for mutually exclusive extras (CPU vs CUDA); `uv lock` resolves each branch in one lock file, and `select()` in the `@pypi` hub repo picks the right wheel. Pattern 4 uses separate `pip.parse()` calls with different `hub_name` values. Full MODULE.bazel and BUILD examples for all five patterns are available on request.
 
@@ -687,27 +690,27 @@ Every design decision was validated via prototype or benchmark before being comm
 
 ### Performance (macOS ARM — Python 3.11, uv 0.9.22, torch 2.10)
 
-| Metric | Value |
-|---|---|
-| Venv creation (`uv venv`) | 28ms |
-| Package install (warm cache, hardlink) | 3.5s |
-| Files in site-packages | 16,386 |
-| Apparent size | 431MB |
-| Test startup (reusing cached venv) | 0s (vs ~87ms with rules_py) |
-| TreeArtifact copy (simulated remote exec) | 4.7s |
+| Metric                                    | Value                       |
+| ----------------------------------------- | --------------------------- |
+| Venv creation (`uv venv`)                 | 28ms                        |
+| Package install (warm cache, hardlink)    | 3.5s                        |
+| Files in site-packages                    | 16,386                      |
+| Apparent size                             | 431MB                       |
+| Test startup (reusing cached venv)        | 0s (vs ~87ms with rules_py) |
+| TreeArtifact copy (simulated remote exec) | 4.7s                        |
 
 ### Performance (Linux CUDA — Python 3.11, uv 0.10.3, torch 2.10+cu128)
 
-| Metric | Value |
-|---|---|
-| Wheels downloaded | 34 (4.18 GB compressed) |
-| Package install (warm cache, hardlink) | 4.3s |
-| Incremental rebuild (warm cache) | 1.73s |
-| Files in venv | 18,192 |
-| Apparent size | 7.42 GB |
-| TreeArtifact copy | 3.72s |
-| Tar+zstd | 4.76s (3.47 GB) |
-| torch import time | 1.35s |
+| Metric                                 | Value                   |
+| -------------------------------------- | ----------------------- |
+| Wheels downloaded                      | 34 (4.18 GB compressed) |
+| Package install (warm cache, hardlink) | 4.3s                    |
+| Incremental rebuild (warm cache)       | 1.73s                   |
+| Files in venv                          | 18,192                  |
+| Apparent size                          | 7.42 GB                 |
+| TreeArtifact copy                      | 3.72s                   |
+| Tar+zstd                               | 4.76s (3.47 GB)         |
+| torch import time                      | 1.35s                   |
 
 The feared 50-100K file count didn't materialize — growth was modest (16K -> 18K). The 17x byte size increase is driven by nvidia `.so` libraries (4,589 MB), not file count. Split-venv was evaluated and rejected: torch is only 25% of bytes, splitting adds complexity, and all operations are already fast.
 
@@ -732,11 +735,11 @@ Mitigation: `UV_CACHE_DIR` and `sandbox_writable_path` must point to the same fi
 
 ## Design Trade-offs
 
-| Alternative | Why not |
-|---|---|
-| **Improve the existing rules** | The differences are architectural, not incremental: PYTHONPATH vs `.pth` files, build-time cached vs runtime-created venvs, pyproject.toml vs BUILD attributes. Can't be layered on top. |
-| **Switch to Pants** | Excellent Python support, but we also build C++, MLIR dialects, and other non-Python artifacts. Switching build systems is a multi-quarter migration. rules_pythonic brings Pythonic conventions to Bazel incrementally. |
-| **Support arbitrary test runners** | pytest covers ~90% of tests. The remaining 10% use `main` or `main_module` — Python scripts, not Starlark configuration. Generality would add complexity for the majority to serve the minority. |
+| Alternative                        | Why not                                                                                                                                                                                                                  |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Improve the existing rules**     | The differences are architectural, not incremental: PYTHONPATH vs `.pth` files, build-time cached vs runtime-created venvs, pyproject.toml vs BUILD attributes. Can't be layered on top.                                 |
+| **Switch to Pants**                | Excellent Python support, but we also build C++, MLIR dialects, and other non-Python artifacts. Switching build systems is a multi-quarter migration. rules_pythonic brings Pythonic conventions to Bazel incrementally. |
+| **Support arbitrary test runners** | pytest covers ~90% of tests. The remaining 10% use `main` or `main_module` — Python scripts, not Starlark configuration. Generality would add complexity for the majority to serve the minority.                         |
 
 ---
 
@@ -744,11 +747,11 @@ Mitigation: `UV_CACHE_DIR` and `sandbox_writable_path` must point to the same fi
 
 All 12 identified risks were prototyped or benchmarked before this doc was written. None remain as blockers. Three shaped the design:
 
-| Risk | What we learned | Design impact |
-|---|---|---|
-| **CUDA package scale** (feared 50-100K files) | Only 18K files, all ops < 5s | Single TreeArtifact design confirmed. |
-| **Hardlink cross-device silent fallback** | uv silently copies instead of hardlinking across filesystems — 7+ GB wasted, no warning | `install_packages.py` checks `nlink > 1` after install and warns. `sandbox_writable_path` must be same-fs as output base. |
-| **Remote cache size** | 3.47 GB zstd per package dir, only ~5-10 unique dirs | Acceptable. Bazel deduplicates at file level. Monitor storage costs. |
+| Risk                                          | What we learned                                                                         | Design impact                                                                                                             |
+| --------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **CUDA package scale** (feared 50-100K files) | Only 18K files, all ops < 5s                                                            | Single TreeArtifact design confirmed.                                                                                     |
+| **Hardlink cross-device silent fallback**     | uv silently copies instead of hardlinking across filesystems — 7+ GB wasted, no warning | `install_packages.py` checks `nlink > 1` after install and warns. `sandbox_writable_path` must be same-fs as output base. |
+| **Remote cache size**                         | 3.47 GB zstd per package dir, only ~5-10 unique dirs                                    | Acceptable. Bazel deduplicates at file level. Monitor storage costs.                                                      |
 
 The remaining risks (namespace packages, LD_LIBRARY_PATH, PYTHONPATH scaling, platform wheel selection, sandbox wheel builds, conservative cache key, VERSION file escaping, Python < 3.11) were all verified with no design changes needed.
 
@@ -769,7 +772,7 @@ All blockers were resolved via prototyping. These remain as nice-to-resolve duri
 ## What Stays
 
 - **rules_python toolchain** — hermetic interpreter management works well
-- **rules_python `pip.parse()`** — wheel download mechanism is solid; we replace everything *after* download
+- **rules_python `pip.parse()`** — wheel download mechanism is solid; we replace everything _after_ download
 - **Per-platform requirements files** — pragmatic for multi-platform resolution
 - **rules_uv** — new dependency for hermetic `uv` binary
 
@@ -781,8 +784,6 @@ All blockers were resolved via prototyping. These remain as nice-to-resolve duri
 
 ---
 
-
 ## Appendix: Compiled Artifacts
 
 Packages that assemble files from multiple sources (cc_binary outputs, pre-built `.so` files, Python files from external repos) use `copy_to_directory` from `@aspect_bazel_lib` to merge everything into a single TreeArtifact with path remapping. Then `pythonic_package` wraps the assembled tree. The assembly step doesn't know it's building a Python package; the Python rule doesn't know how the files were assembled.
-

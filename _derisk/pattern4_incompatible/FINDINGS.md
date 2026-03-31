@@ -26,6 +26,7 @@ pattern4_incompatible/
 ### Finding 1: Separate workspaces resolve independently -- CONFIRMED
 
 Running `uv lock` in `main/` and `legacy/` produces completely independent lockfiles:
+
 - `main/uv.lock`: resolves **pydantic 2.12.5** (+ pydantic-core, annotated-types, typing-inspection)
 - `legacy/uv.lock`: resolves **pydantic 1.10.26** (no pydantic-core needed)
 
@@ -43,6 +44,7 @@ Each requirements file is self-consistent and installable. The `--all-packages` 
 **This was the most surprising finding.** Despite the uv documentation suggesting workspace members must be within the workspace root, `uv` (v0.9.22) successfully resolves workspace members at relative paths outside the workspace root (e.g., `"../shared/core"`).
 
 The `shared/core` package declares `dependencies = ["pydantic"]` with **no version constraint**. When included as a workspace member:
+
 - In `main/`: shared-core's pydantic resolves to **2.12.5** (constrained by core and search requiring `>=2.0`)
 - In `legacy/`: shared-core's pydantic resolves to **1.10.26** (constrained by pipeline requiring `<2.0`)
 
@@ -51,6 +53,7 @@ This means the same source code directory participates in two different lockfile
 ### Finding 4: No lockfile conflicts between workspaces
 
 Each workspace has its own `uv.lock` file. There is no cross-contamination:
+
 - `main/uv.lock` knows nothing about the legacy workspace
 - `legacy/uv.lock` knows nothing about the main workspace
 - The `shared/core` directory has no lockfile of its own; it inherits the resolution from whichever workspace references it

@@ -38,6 +38,7 @@ Three-layer design:
 3. **Runtime**: `pythonic_run.tmpl.sh` launcher sets PYTHONPATH (first-party src roots before third-party site-packages) and execs Python
 
 Key files:
+
 - `pythonic/defs.bzl` — Public API
 - `pythonic/private/common.bzl` — Shared helpers: `rlocation_path`, `collect_dep_info`, `build_pythonpath`, `build_env_exports`
 - `pythonic/private/package.bzl` — `pythonic_package` rule + `.wheel` sub-target
@@ -69,10 +70,12 @@ Key files:
 ## Consumer Setup
 
 Consumers must configure their uv cache path in `.bazelrc`:
+
 ```
 build --action_env=UV_CACHE_DIR=/absolute/path/to/uv/cache
 build --sandbox_writable_path=/absolute/path/to/uv/cache
 ```
+
 Without this, `PythonicInstall` fails with setup instructions. Both lines are needed: `action_env` passes the path to the action, `sandbox_writable_path` lets the sandbox access it. The cache must be on the same filesystem as Bazel's output base for hardlinks to work.
 
 ## Development

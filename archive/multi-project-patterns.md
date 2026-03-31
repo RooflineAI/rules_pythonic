@@ -621,13 +621,13 @@ bazel test //legacy/... --//config:accelerator=cuda11
 
 ## Summary: choosing a pattern
 
-| Pattern | Products | Dep conflicts | Platform variants | Lock files | Complexity |
-|---------|----------|---------------|-------------------|------------|------------|
-| 1. Single product | 1 | None | OS/arch only | 1 | Minimal |
-| 2. Platform variants | 1 | Platform-only (same pkg, different builds) | GPU/CUDA/custom | 1 | Low |
-| 3. Additional test deps | Multiple test suites | None (additive only) | Any | 1 | Low |
-| 4. Incompatible products | Multiple | Genuine version conflicts | Any | N (one per product) | Medium |
-| 5. Combined | Multiple | Conflicts + platform variants | Custom per product | N | High |
+| Pattern                  | Products             | Dep conflicts                              | Platform variants  | Lock files          | Complexity |
+| ------------------------ | -------------------- | ------------------------------------------ | ------------------ | ------------------- | ---------- |
+| 1. Single product        | 1                    | None                                       | OS/arch only       | 1                   | Minimal    |
+| 2. Platform variants     | 1                    | Platform-only (same pkg, different builds) | GPU/CUDA/custom    | 1                   | Low        |
+| 3. Additional test deps  | Multiple test suites | None (additive only)                       | Any                | 1                   | Low        |
+| 4. Incompatible products | Multiple             | Genuine version conflicts                  | Any                | N (one per product) | Medium     |
+| 5. Combined              | Multiple             | Conflicts + platform variants              | Custom per product | N                   | High       |
 
 **Start with Pattern 1.** Move to Pattern 2 when you need GPU/CUDA variants. Use Pattern 3 freely for test-only deps. Only reach for Pattern 4 when you've confirmed that version alignment is truly impossible. Pattern 5 is rare — most repos never need it.
 

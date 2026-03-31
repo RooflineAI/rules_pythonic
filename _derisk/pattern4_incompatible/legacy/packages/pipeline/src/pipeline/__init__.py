@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class PipelineConfig(BaseModel):
     """Pipeline configuration using pydantic v1 style."""
+
     name: str
     batch_size: int = 100
 

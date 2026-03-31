@@ -5,6 +5,7 @@
 **Context:** roof_py replaces Bazel's Python build infrastructure by running `uv pip install` at build time into a flat `site-packages/` directory (a Bazel TreeArtifact). This was validated on macOS ARM with torch CPU (16K files, 431MB). Linux CUDA wheels are 5-10x larger. If TreeArtifact operations at that scale are unacceptable, the architecture must change before implementation begins.
 
 **Environment:** Run this on a Linux x86_64 machine with:
+
 - Python 3.11+
 - `uv` installed (`pip install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - At least 15GB free disk space
@@ -754,11 +755,11 @@ The benchmark produces 8 measurement groups. Each one answers a specific archite
 
 **Question:** How big is a CUDA venv?
 
-| Result | Interpretation | Action |
-|--------|---------------|--------|
-| < 30K files, < 2 GB | Similar to macOS — single TreeArtifact is fine | No architecture change needed |
-| 30K-80K files, 2-5 GB | Larger but manageable | Proceed with single venv, monitor remote cache |
-| > 80K files or > 5 GB | Very large — may stress TreeArtifact handling | Consider split-venv as default for CUDA |
+| Result                | Interpretation                                 | Action                                         |
+| --------------------- | ---------------------------------------------- | ---------------------------------------------- |
+| < 30K files, < 2 GB   | Similar to macOS — single TreeArtifact is fine | No architecture change needed                  |
+| 30K-80K files, 2-5 GB | Larger but manageable                          | Proceed with single venv, monitor remote cache |
+| > 80K files or > 5 GB | Very large — may stress TreeArtifact handling  | Consider split-venv as default for CUDA        |
 
 **What this influences:** Whether the single `_roof_py_venv` TreeArtifact design works, or whether CUDA targets need an automatic split-venv variant.
 
@@ -768,11 +769,11 @@ The benchmark produces 8 measurement groups. Each one answers a specific archite
 
 **Question:** How long does the build-time venv action take?
 
-| Result | Interpretation | Action |
-|--------|---------------|--------|
-| < 5s | Excellent — rebuild cost is trivial | Conservative cache key (all wheels) is fine |
-| 5-15s | Acceptable — equivalent to a medium cc_library compile | Conservative cache key acceptable, but monitor |
-| > 15s | Slow — will frustrate developers on every requirements.txt change | Need per-package cache keys or split-venv to limit blast radius |
+| Result | Interpretation                                                    | Action                                                          |
+| ------ | ----------------------------------------------------------------- | --------------------------------------------------------------- |
+| < 5s   | Excellent — rebuild cost is trivial                               | Conservative cache key (all wheels) is fine                     |
+| 5-15s  | Acceptable — equivalent to a medium cc_library compile            | Conservative cache key acceptable, but monitor                  |
+| > 15s  | Slow — will frustrate developers on every requirements.txt change | Need per-package cache keys or split-venv to limit blast radius |
 
 **What this influences:** Whether the conservative cache key strategy (all wheels in key = any change rebuilds all venvs) is acceptable, or whether per-package cache keys should be implemented in Phase 0.
 
@@ -782,11 +783,11 @@ The benchmark produces 8 measurement groups. Each one answers a specific archite
 
 **Question:** How long does remote execution TreeArtifact materialization take?
 
-| Result | Interpretation | Action |
-|--------|---------------|--------|
-| < 10s | Acceptable for remote exec | No special handling needed |
+| Result | Interpretation                              | Action                                               |
+| ------ | ------------------------------------------- | ---------------------------------------------------- |
+| < 10s  | Acceptable for remote exec                  | No special handling needed                           |
 | 10-30s | Noticeable delay on remote exec cold builds | Document as known cost; Bazel action cache mitigates |
-| > 30s | Painful | Split-venv becomes important for remote exec users |
+| > 30s  | Painful                                     | Split-venv becomes important for remote exec users   |
 
 **What this influences:** Whether remote execution users need the split-venv optimization from day one.
 
@@ -796,12 +797,12 @@ The benchmark produces 8 measurement groups. Each one answers a specific archite
 
 **Question:** How expensive is remote cache upload/download?
 
-| Metric | Good | Concerning | Action if concerning |
-|--------|------|-----------|---------------------|
-| tar create | < 10s | > 20s | Split-venv to reduce upload size |
-| zstd compressed size | < 1 GB | > 2 GB | Monitor cache storage costs |
-| tar extract | < 10s | > 20s | Split-venv or accept as cold-build cost |
-| zstd compression ratio | > 2:1 | < 1.5:1 | .so files don't compress well — expected |
+| Metric                 | Good   | Concerning | Action if concerning                     |
+| ---------------------- | ------ | ---------- | ---------------------------------------- |
+| tar create             | < 10s  | > 20s      | Split-venv to reduce upload size         |
+| zstd compressed size   | < 1 GB | > 2 GB     | Monitor cache storage costs              |
+| tar extract            | < 10s  | > 20s      | Split-venv or accept as cold-build cost  |
+| zstd compression ratio | > 2:1  | < 1.5:1    | .so files don't compress well — expected |
 
 **What this influences:** Whether remote cache is viable for CUDA venvs, and whether Bazel's Merkle-tree deduplication (per-file hashing) provides meaningful savings over naive tar.
 
@@ -811,12 +812,12 @@ The benchmark produces 8 measurement groups. Each one answers a specific archite
 
 **Question:** Does the PYTHONPATH approach work correctly for CUDA torch?
 
-| Result | Interpretation | Action |
-|--------|---------------|--------|
-| < 5s, no errors | Works — PYTHONPATH + toolchain Python handles CUDA torch | No changes needed |
-| Works but > 10s | torch import is slow (expected — it loads .so files) | Fine, this is torch's inherent cost, not roof_py's |
-| Fails with import error | Something is wrong with the venv structure | Investigate — may need additional env vars (LD_LIBRARY_PATH?) |
-| `torch_cuda_available = false` | Expected if no GPU on bench machine | Not a problem — we're testing venv structure, not GPU access |
+| Result                         | Interpretation                                           | Action                                                        |
+| ------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------- |
+| < 5s, no errors                | Works — PYTHONPATH + toolchain Python handles CUDA torch | No changes needed                                             |
+| Works but > 10s                | torch import is slow (expected — it loads .so files)     | Fine, this is torch's inherent cost, not roof_py's            |
+| Fails with import error        | Something is wrong with the venv structure               | Investigate — may need additional env vars (LD_LIBRARY_PATH?) |
+| `torch_cuda_available = false` | Expected if no GPU on bench machine                      | Not a problem — we're testing venv structure, not GPU access  |
 
 **What this influences:** Whether the PYTHONPATH approach needs any CUDA-specific adjustments (e.g., `LD_LIBRARY_PATH` in the launcher template).
 
@@ -826,10 +827,10 @@ The benchmark produces 8 measurement groups. Each one answers a specific archite
 
 **Question:** Does `importlib.metadata` work for CUDA packages?
 
-| Result | Interpretation | Action |
-|--------|---------------|--------|
-| Returns correct version | `.dist-info` is correctly placed in site-packages | No changes |
-| Fails or wrong version | `uv pip install` may not write `.dist-info` correctly for CUDA builds | Investigate — roof_py depends on metadata working |
+| Result                  | Interpretation                                                        | Action                                            |
+| ----------------------- | --------------------------------------------------------------------- | ------------------------------------------------- |
+| Returns correct version | `.dist-info` is correctly placed in site-packages                     | No changes                                        |
+| Fails or wrong version  | `uv pip install` may not write `.dist-info` correctly for CUDA builds | Investigate — roof_py depends on metadata working |
 
 **What this influences:** Whether the metadata access story (debugging, version introspection) works at CUDA scale.
 
@@ -839,11 +840,11 @@ The benchmark produces 8 measurement groups. Each one answers a specific archite
 
 **Question:** When `requirements.txt` changes, how long does the full venv rebuild take?
 
-| Result | Interpretation | Action |
-|--------|---------------|--------|
-| < 10s | Fast enough — conservative cache key is fine | Ship it |
-| 10-20s | Acceptable but noticeable | Monitor; consider per-package keys later |
-| > 20s | Too slow for developer iteration | Implement per-package cache keys in Phase 0 |
+| Result | Interpretation                               | Action                                      |
+| ------ | -------------------------------------------- | ------------------------------------------- |
+| < 10s  | Fast enough — conservative cache key is fine | Ship it                                     |
+| 10-20s | Acceptable but noticeable                    | Monitor; consider per-package keys later    |
+| > 20s  | Too slow for developer iteration             | Implement per-package cache keys in Phase 0 |
 
 **What this influences:** Same as #2 — conservative vs per-package cache key strategy.
 
@@ -853,11 +854,11 @@ The benchmark produces 8 measurement groups. Each one answers a specific archite
 
 **Question:** If we split torch into its own TreeArtifact, how much does it help?
 
-| Metric | What to look at |
-|--------|----------------|
+| Metric                                  | What to look at                                           |
+| --------------------------------------- | --------------------------------------------------------- |
 | `torch_venv.files` vs `rest_venv.files` | If torch is >80% of files, splitting isolates the problem |
-| `torch_venv.gb` vs `rest_venv.gb` | If torch is >80% of bytes, splitting helps remote cache |
-| Combined install time vs single install | If combined is similar, split has no install cost |
+| `torch_venv.gb` vs `rest_venv.gb`       | If torch is >80% of bytes, splitting helps remote cache   |
+| Combined install time vs single install | If combined is similar, split has no install cost         |
 
 **What this influences:** Whether `roof_py_test` should accept a `large_deps` attribute that puts specific packages (torch, CUDA) in a separate, more-stable TreeArtifact. This reduces rebuild blast radius: changing a small dep (pytest version bump) doesn't rebuild the torch venv.
 
@@ -867,11 +868,11 @@ The benchmark produces 8 measurement groups. Each one answers a specific archite
 
 **Question:** Do nvidia CUDA namespace packages work in flat site-packages?
 
-| Result | Interpretation | Action |
-|--------|---------------|--------|
-| Multiple subpackages listed (cudnn, cublas, cuda_runtime, ...) | PEP 420 namespace packages work at CUDA scale | Confirms macOS prototype result; no changes |
-| `nvidia_namespace_exists = false` | CUDA index download failed; CPU-only torch was used | Re-run with working CUDA index access, or accept as partial result |
-| Import errors on specific subpackages | Something wrong with the flat site-packages layout for CUDA | Investigate — this would be a design-level concern |
+| Result                                                         | Interpretation                                              | Action                                                             |
+| -------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------ |
+| Multiple subpackages listed (cudnn, cublas, cuda_runtime, ...) | PEP 420 namespace packages work at CUDA scale               | Confirms macOS prototype result; no changes                        |
+| `nvidia_namespace_exists = false`                              | CUDA index download failed; CPU-only torch was used         | Re-run with working CUDA index access, or accept as partial result |
+| Import errors on specific subpackages                          | Something wrong with the flat site-packages layout for CUDA | Investigate — this would be a design-level concern                 |
 
 **What this influences:** Whether the "nvidia namespace problem disappears" claim holds for the full CUDA package set (not just the 3-package simulation in `_derisk/namespace_test/`).
 
@@ -881,11 +882,11 @@ The benchmark produces 8 measurement groups. Each one answers a specific archite
 
 **Question:** Does CUDA torch need `LD_LIBRARY_PATH` to work via PYTHONPATH?
 
-| Result | Interpretation | Action |
-|--------|---------------|--------|
-| torch imports fine, `ld_library_path = (not set)` | No extra env vars needed — torch finds its .so files via `__file__` relative paths | No launcher template changes |
-| torch import fails with `.so` load error | torch's internal .so files need `LD_LIBRARY_PATH` pointing at `torch/lib/` | Add `LD_LIBRARY_PATH` to `roof_run.tmpl.sh` (minor template change) |
-| `torch_lib_so_count` > 50 | Many shared libraries — this is where the venv size comes from | Expected; confirms why CUDA venvs are large |
+| Result                                            | Interpretation                                                                     | Action                                                              |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| torch imports fine, `ld_library_path = (not set)` | No extra env vars needed — torch finds its .so files via `__file__` relative paths | No launcher template changes                                        |
+| torch import fails with `.so` load error          | torch's internal .so files need `LD_LIBRARY_PATH` pointing at `torch/lib/`         | Add `LD_LIBRARY_PATH` to `roof_run.tmpl.sh` (minor template change) |
+| `torch_lib_so_count` > 50                         | Many shared libraries — this is where the venv size comes from                     | Expected; confirms why CUDA venvs are large                         |
 
 **What this influences:** Whether the launcher template (`roof_run.tmpl.sh`) needs a `LD_LIBRARY_PATH` line for CUDA workloads, and whether this should be automatic or opt-in.
 
@@ -921,6 +922,7 @@ After running the benchmark, fill in this table:
 The benchmark showed 0% hardlink dedup ratio. This was NOT an overlay filesystem problem — it was a **cross-device** problem. The benchmark ran venvs in `/tmp` (overlay, device `0:103`) while uv's default cache lives at `~/.cache/uv` (ext4, device `259:2`). Hardlinks cannot cross device boundaries (kernel returns `EXDEV`), so uv silently fell back to full copies.
 
 Follow-up experiments (`experiment_hardlinks.py`, `experiment_uv_cache_location.py`, `experiment_ci_simulation.py`) confirmed:
+
 - Same device = 99% hardlink ratio
 - Cross device = 0% — every time, no exceptions
 - Fix: set `UV_CACHE_DIR` to a path on the same filesystem as the venv output

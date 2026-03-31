@@ -16,5 +16,10 @@ def test_third_party_metadata():
 def test_sys_path():
     """Verify PYTHONPATH has source roots and site-packages."""
     import sys
-    assert any("mypackage/src" in p for p in sys.path), f"src root not on sys.path: {sys.path}"
-    assert any("site-packages" in p for p in sys.path), f"site-packages not on sys.path: {sys.path}"
+
+    assert any("mypackage/src" in p for p in sys.path), (
+        f"src root not on sys.path: {sys.path}"
+    )
+    assert any("site-packages" in p for p in sys.path), (
+        f"site-packages not on sys.path: {sys.path}"
+    )

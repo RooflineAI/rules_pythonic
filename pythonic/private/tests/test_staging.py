@@ -2,7 +2,6 @@
 
 Run with: python -m pytest pythonic/private/tests/
 """
-import pathlib
 
 from staging import stage_symlink_tree
 

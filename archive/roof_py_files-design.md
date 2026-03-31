@@ -50,12 +50,12 @@ roof_py_files(
 )
 ```
 
-| Attribute | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `name` | string | yes | Target name |
-| `srcs` | label_list(allow_files = True) | yes | Files to place on PYTHONPATH. Accepts any file type — `.py`, `.so`, `.pyi`, `.json`, etc. The user controls what's included via `glob()` patterns. Also accepts rule outputs (e.g., `py_proto_library`, `cc_binary`). |
-| `src_root` | string | yes | Relative path to the directory added to PYTHONPATH. Same semantics as `roof_py_package.src_root`. Must not contain `..` — use a BUILD file in the parent directory instead. |
-| `data` | label_list(allow_files = True) | no | Additional files needed at runtime that are NOT on the PYTHONPATH import path (e.g., golden test data, config files loaded by explicit path). |
+| Attribute  | Type                           | Required | Description                                                                                                                                                                                                           |
+| ---------- | ------------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`     | string                         | yes      | Target name                                                                                                                                                                                                           |
+| `srcs`     | label_list(allow_files = True) | yes      | Files to place on PYTHONPATH. Accepts any file type — `.py`, `.so`, `.pyi`, `.json`, etc. The user controls what's included via `glob()` patterns. Also accepts rule outputs (e.g., `py_proto_library`, `cc_binary`). |
+| `src_root` | string                         | yes      | Relative path to the directory added to PYTHONPATH. Same semantics as `roof_py_package.src_root`. Must not contain `..` — use a BUILD file in the parent directory instead.                                           |
+| `data`     | label_list(allow_files = True) | no       | Additional files needed at runtime that are NOT on the PYTHONPATH import path (e.g., golden test data, config files loaded by explicit path).                                                                         |
 
 ### Why no file type filter on srcs
 
@@ -74,12 +74,12 @@ Filtering `srcs` to `.py`-only would fight this convention. The user already con
 
 `roof_py_files` targets are leaves — they provide files, they don't compose dependency graphs:
 
-| Use case | Depends on other Python? |
-|----------|------------------------|
-| Shared test utilities | Rarely — usually standalone helpers |
-| Config/constants modules | No — these are imported, they don't import |
-| Generated code | No — dependency chains are handled at the generator level (proto deps proto), not the output level |
-| Extension wrappers | No — they wrap C, not Python |
+| Use case                 | Depends on other Python?                                                                           |
+| ------------------------ | -------------------------------------------------------------------------------------------------- |
+| Shared test utilities    | Rarely — usually standalone helpers                                                                |
+| Config/constants modules | No — these are imported, they don't import                                                         |
+| Generated code           | No — dependency chains are handled at the generator level (proto deps proto), not the output level |
+| Extension wrappers       | No — they wrap C, not Python                                                                       |
 
 The dependency graph belongs to the package that consumes the files. If generated proto A imports generated proto B at the Python level, the consuming `roof_py_test` lists both as deps. The proto-level dep chain ensures both exist; the Bazel-level dep list ensures both are on PYTHONPATH.
 
@@ -124,13 +124,13 @@ One field type change. That's it.
 
 Every code path that touches `pyproject` must handle `None`:
 
-| Code path | Change needed |
-|-----------|--------------|
-| `venv.bzl` — pyproject collection | `if info.pyproject:` guard |
-| `defs.bzl` — first-party-packages list | Skip targets with `pyproject = None` |
-| `defs.bzl` — venv dedup hash | See "Venv deduplication" section below |
-| `install_venv.py` — receives pyproject paths | No change (filtered upstream in Starlark) |
-| `launcher.bzl` — src_root collection | No change (works regardless of pyproject) |
+| Code path                                           | Change needed                                                     |
+| --------------------------------------------------- | ----------------------------------------------------------------- |
+| `venv.bzl` — pyproject collection                   | `if info.pyproject:` guard                                        |
+| `defs.bzl` — first-party-packages list              | Skip targets with `pyproject = None`                              |
+| `defs.bzl` — venv dedup hash                        | See "Venv deduplication" section below                            |
+| `install_venv.py` — receives pyproject paths        | No change (filtered upstream in Starlark)                         |
+| `launcher.bzl` — src_root collection                | No change (works regardless of pyproject)                         |
 | `test_rule.bzl` / `binary_rule.bzl` — dep iteration | No change (collects src_root from all deps, pyproject irrelevant) |
 
 ```starlark
@@ -384,18 +384,18 @@ If the generated code needs to ship in a wheel, it's the user's responsibility t
 
 ## How it differs from py_library
 
-| | `py_library` (rules_python) | `roof_py_files` |
-|---|---|---|
-| **Role in the system** | Core building block — everything flows through it | Escape hatch — for code that isn't a package |
-| **Third-party deps** | Yes: `deps = ["@pypi//torch"]` | Never. Third-party deps are the consuming package's job. |
-| **File types** | `.py` only in `srcs` | Any file type — `.py`, `.so`, `.pyi`, `.json`, etc. User controls via `glob()`. |
-| **Provider** | `PyInfo` (13 fields, transitive source depsets, import path lists) | `RoofPyPackageInfo` with `pyproject=None` (same 5-field provider as packages) |
-| **Import mechanism** | `imports` attribute → `.pth` files / `PyInfo.imports` depsets | `src_root` → PYTHONPATH entry |
-| **Composition** | Arbitrary dep chains of py_library → py_library → py_library | Leaf only. No deps on other roof_py_files. |
-| **How deps are consumed** | Direct: `py_test(deps = [":mylib", "@pypi//torch"])` | Same provider: `roof_py_test(deps = [":mypackage", ":myfiles"])` |
-| **Typical size** | 1-200+ per repo (every Python target) | 5-20 per repo (generated code, utilities, config) |
-| **When to upgrade** | N/A | When you need third-party deps or transitive composition → `roof_py_package` with minimal pyproject.toml |
-| **Wheel builds** | Part of py_wheel | Never. Arrange layout yourself, then use `roof_py_package`. |
+|                           | `py_library` (rules_python)                                        | `roof_py_files`                                                                                          |
+| ------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| **Role in the system**    | Core building block — everything flows through it                  | Escape hatch — for code that isn't a package                                                             |
+| **Third-party deps**      | Yes: `deps = ["@pypi//torch"]`                                     | Never. Third-party deps are the consuming package's job.                                                 |
+| **File types**            | `.py` only in `srcs`                                               | Any file type — `.py`, `.so`, `.pyi`, `.json`, etc. User controls via `glob()`.                          |
+| **Provider**              | `PyInfo` (13 fields, transitive source depsets, import path lists) | `RoofPyPackageInfo` with `pyproject=None` (same 5-field provider as packages)                            |
+| **Import mechanism**      | `imports` attribute → `.pth` files / `PyInfo.imports` depsets      | `src_root` → PYTHONPATH entry                                                                            |
+| **Composition**           | Arbitrary dep chains of py_library → py_library → py_library       | Leaf only. No deps on other roof_py_files.                                                               |
+| **How deps are consumed** | Direct: `py_test(deps = [":mylib", "@pypi//torch"])`               | Same provider: `roof_py_test(deps = [":mypackage", ":myfiles"])`                                         |
+| **Typical size**          | 1-200+ per repo (every Python target)                              | 5-20 per repo (generated code, utilities, config)                                                        |
+| **When to upgrade**       | N/A                                                                | When you need third-party deps or transitive composition → `roof_py_package` with minimal pyproject.toml |
+| **Wheel builds**          | Part of py_wheel                                                   | Never. Arrange layout yourself, then use `roof_py_package`.                                              |
 
 The philosophical difference: in rules_python, `py_library` carries the dependency graph. In roof_py, `pyproject.toml` carries the dependency graph. `roof_py_files` deliberately stays out of the dependency graph — it's just "files on a path."
 
@@ -487,16 +487,16 @@ If `wrapper.py` does `pathlib.Path(__file__).parent / "_native.so"`, the `.so` m
 
 ## Implementation plan
 
-| Step | What | Lines | Depends on |
-|------|------|-------|------------|
-| 1 | Change `pyproject` field to `File or None` in `providers.bzl` | 1 | — |
-| 2 | Add `pyproject = None` guards (see checklist above) | ~5 | Step 1 |
-| 3 | Create `files_rule.bzl` with `_roof_py_files` | ~25 | Step 1 |
-| 4 | Add `roof_py_files` macro to `defs.bzl` | ~15 | Step 3 |
-| 5 | Add `bzl_library` target in `python/private/BUILD.bazel` | ~5 | Step 3 |
-| 6 | Derisk: generated file runfiles paths | — | Step 4 |
-| 7 | Derisk: rule outputs as runfiles siblings | — | Step 4 |
-| 8 | Example: shared test utilities | ~20 | Step 4 |
+| Step | What                                                          | Lines | Depends on |
+| ---- | ------------------------------------------------------------- | ----- | ---------- |
+| 1    | Change `pyproject` field to `File or None` in `providers.bzl` | 1     | —          |
+| 2    | Add `pyproject = None` guards (see checklist above)           | ~5    | Step 1     |
+| 3    | Create `files_rule.bzl` with `_roof_py_files`                 | ~25   | Step 1     |
+| 4    | Add `roof_py_files` macro to `defs.bzl`                       | ~15   | Step 3     |
+| 5    | Add `bzl_library` target in `python/private/BUILD.bazel`      | ~5    | Step 3     |
+| 6    | Derisk: generated file runfiles paths                         | —     | Step 4     |
+| 7    | Derisk: rule outputs as runfiles siblings                     | —     | Step 4     |
+| 8    | Example: shared test utilities                                | ~20   | Step 4     |
 
 Total new code: ~50 lines of Starlark. ~5 lines of changes to existing files.
 

@@ -2,7 +2,7 @@
 
 **Status:** Draft | **Authors:** [TBD] | **Last updated:** 2026-03-11
 
-This document provides the detailed evidence, benchmarks, implementation specifics, and worked examples behind the rules_pythonic architecture. It is intended for engineers who want to understand *how* things work and *why* we're confident they work, beyond what the design overview covers.
+This document provides the detailed evidence, benchmarks, implementation specifics, and worked examples behind the rules*pythonic architecture. It is intended for engineers who want to understand \_how* things work and _why_ we're confident they work, beyond what the design overview covers.
 
 ---
 
@@ -32,41 +32,41 @@ End-to-end prototype simulating the full rules_pythonic flow: `install_packages.
 
 **Performance (torch + numpy + pytest + 17 transitive deps):**
 
-| Metric | Value |
-|---|---|
-| Venv creation (`uv venv`) | 28ms |
-| Package install (warm uv cache, hardlink) | 3.5s |
-| Package install (warm uv cache, copy) | 2.0s (APFS CoW) |
-| Cold install (including download) | 46s |
-| Files in site-packages | 16,386 |
-| Apparent size | 431MB |
-| On-disk size (hardlink to uv cache) | 392MB |
-| Additional venv (shared hardlinks) | ~2-4MB |
-| TreeArtifact copy (simulated remote exec) | 4.7s |
-| TreeArtifact symlink (local execution) | 0ms |
-| Test execution (4 pytest tests with torch) | 2.5s |
-| torch import time | ~2s |
-| Wheel build (`uv build --wheel`, symlinked sandbox) | 0.42s |
+| Metric                                              | Value           |
+| --------------------------------------------------- | --------------- |
+| Venv creation (`uv venv`)                           | 28ms            |
+| Package install (warm uv cache, hardlink)           | 3.5s            |
+| Package install (warm uv cache, copy)               | 2.0s (APFS CoW) |
+| Cold install (including download)                   | 46s             |
+| Files in site-packages                              | 16,386          |
+| Apparent size                                       | 431MB           |
+| On-disk size (hardlink to uv cache)                 | 392MB           |
+| Additional venv (shared hardlinks)                  | ~2-4MB          |
+| TreeArtifact copy (simulated remote exec)           | 4.7s            |
+| TreeArtifact symlink (local execution)              | 0ms             |
+| Test execution (4 pytest tests with torch)          | 2.5s            |
+| torch import time                                   | ~2s             |
+| Wheel build (`uv build --wheel`, symlinked sandbox) | 0.42s           |
 
 **Correctness matrix:**
 
-| Test | Result | Notes |
-|---|---|---|
-| torch import via PYTHONPATH (toolchain python) | Pass | `__file__` points to site-packages |
-| numpy import via PYTHONPATH | Pass | real files, not symlinks |
-| `importlib.metadata.version("torch")` | Pass | `.dist-info` found via `sys.path` search |
-| `importlib.metadata` for source deps | Fail | expected — no `.dist-info` for PYTHONPATH deps |
-| `__file__` is real file (not symlink) | Pass | hardlinked from uv cache |
-| First-party import via PYTHONPATH | Pass | PYTHONPATH order: first-party wins |
-| First-party shadows third-party | Pass | first entry on PYTHONPATH takes priority |
-| Cross-import (first-party using third-party) | Pass | attic.compiler importing torch works |
-| `shutil.which()` finds console scripts | Pass | venv/bin on PATH, shebangs broken |
-| `python -m pytest` (recommended approach) | Pass | bypasses broken shebangs entirely |
-| Namespace packages (simulated nvidia) | Pass | implicit namespace across MULTIPLE dirs |
-| Broken venv `bin/python3` symlink | Pass | toolchain python ignores it completely |
-| Symlinked TreeArtifact (Bazel runfiles) | Pass | imports work through symlink indirection |
-| Copied TreeArtifact (remote execution sim) | Pass | imports work from full copy |
-| End-to-end pytest (4 tests) | Pass | first-party + third-party + metadata |
+| Test                                           | Result | Notes                                          |
+| ---------------------------------------------- | ------ | ---------------------------------------------- |
+| torch import via PYTHONPATH (toolchain python) | Pass   | `__file__` points to site-packages             |
+| numpy import via PYTHONPATH                    | Pass   | real files, not symlinks                       |
+| `importlib.metadata.version("torch")`          | Pass   | `.dist-info` found via `sys.path` search       |
+| `importlib.metadata` for source deps           | Fail   | expected — no `.dist-info` for PYTHONPATH deps |
+| `__file__` is real file (not symlink)          | Pass   | hardlinked from uv cache                       |
+| First-party import via PYTHONPATH              | Pass   | PYTHONPATH order: first-party wins             |
+| First-party shadows third-party                | Pass   | first entry on PYTHONPATH takes priority       |
+| Cross-import (first-party using third-party)   | Pass   | attic.compiler importing torch works           |
+| `shutil.which()` finds console scripts         | Pass   | venv/bin on PATH, shebangs broken              |
+| `python -m pytest` (recommended approach)      | Pass   | bypasses broken shebangs entirely              |
+| Namespace packages (simulated nvidia)          | Pass   | implicit namespace across MULTIPLE dirs        |
+| Broken venv `bin/python3` symlink              | Pass   | toolchain python ignores it completely         |
+| Symlinked TreeArtifact (Bazel runfiles)        | Pass   | imports work through symlink indirection       |
+| Copied TreeArtifact (remote execution sim)     | Pass   | imports work from full copy                    |
+| End-to-end pytest (4 tests)                    | Pass   | first-party + third-party + metadata           |
 
 ### Additional validation areas
 
@@ -95,10 +95,10 @@ End-to-end prototype simulating the full rules_pythonic flow: `install_packages.
 **PYTHONPATH scaling (Python 3.14, macOS ARM):**
 
 | Entries | Import time per fresh import |
-|---|---|
-| 1 | 50us |
-| 10 | 200us |
-| 50 | 800us |
+| ------- | ---------------------------- |
+| 1       | 50us                         |
+| 10      | 200us                        |
+| 50      | 800us                        |
 
 Real projects have 5-10 source roots + 1 site-packages = ~200us per fresh import. Namespace package aggregation works across all tested entry counts. First-party-before-third-party ordering holds regardless of entry count.
 
@@ -126,46 +126,46 @@ Real projects have 5-10 source roots + 1 site-packages = ~200us per fresh import
 
 ### Results
 
-| Metric | Value |
-|---|---|
-| Wheels downloaded | 34 (4.18 GB compressed) |
-| Venv creation (`uv venv`) | 25ms |
-| Package install (warm uv cache, hardlink) | 4.3s |
-| Package install (warm uv cache, copy) | 1.47s |
-| Incremental rebuild (warm cache, hardlink) | 1.73s |
-| Files in venv | 18,192 |
-| Apparent size | 7.42 GB |
-| On-disk size | 7.35 GB |
-| TreeArtifact copy (`cp -R`) | 3.72s |
-| TreeArtifact symlink (local execution) | 0.04ms |
-| Tar create (uncompressed) | 4.48s (7.36 GB) |
-| Tar+zstd create | 4.76s (3.47 GB, 2.1:1 ratio) |
-| Tar extract | 4.88s |
-| Zstd extract | 5.52s |
-| torch import time | 1.35s |
-| numpy import time | <1ms |
-| `importlib.metadata` | Works (version "2.10.0") |
-| nvidia namespace subpackages | All 10 import correctly |
-| LD_LIBRARY_PATH needed | No |
+| Metric                                     | Value                        |
+| ------------------------------------------ | ---------------------------- |
+| Wheels downloaded                          | 34 (4.18 GB compressed)      |
+| Venv creation (`uv venv`)                  | 25ms                         |
+| Package install (warm uv cache, hardlink)  | 4.3s                         |
+| Package install (warm uv cache, copy)      | 1.47s                        |
+| Incremental rebuild (warm cache, hardlink) | 1.73s                        |
+| Files in venv                              | 18,192                       |
+| Apparent size                              | 7.42 GB                      |
+| On-disk size                               | 7.35 GB                      |
+| TreeArtifact copy (`cp -R`)                | 3.72s                        |
+| TreeArtifact symlink (local execution)     | 0.04ms                       |
+| Tar create (uncompressed)                  | 4.48s (7.36 GB)              |
+| Tar+zstd create                            | 4.76s (3.47 GB, 2.1:1 ratio) |
+| Tar extract                                | 4.88s                        |
+| Zstd extract                               | 5.52s                        |
+| torch import time                          | 1.35s                        |
+| numpy import time                          | <1ms                         |
+| `importlib.metadata`                       | Works (version "2.10.0")     |
+| nvidia namespace subpackages               | All 10 import correctly      |
+| LD_LIBRARY_PATH needed                     | No                           |
 
 ### Top packages by size
 
-| Package | Size |
-|---|---|
-| nvidia (all CUDA libs) | 4,589 MB |
-| torch | 1,757 MB |
-| triton | 669 MB |
-| cuda | 111 MB |
-| scipy | 83 MB |
-| Everything else | < 30 MB each |
+| Package                | Size         |
+| ---------------------- | ------------ |
+| nvidia (all CUDA libs) | 4,589 MB     |
+| torch                  | 1,757 MB     |
+| triton                 | 669 MB       |
+| cuda                   | 111 MB       |
+| scipy                  | 83 MB        |
+| Everything else        | < 30 MB each |
 
 ### Split-venv simulation
 
-| Venv | Files | Size | Install time |
-|---|---|---|---|
-| Torch-only | 11,804 | 1.83 GB | — |
-| Everything else | 6,406 | 5.66 GB | — |
-| Combined install | — | — | 2.2s (vs 4.3s single) |
+| Venv             | Files  | Size    | Install time          |
+| ---------------- | ------ | ------- | --------------------- |
+| Torch-only       | 11,804 | 1.83 GB | —                     |
+| Everything else  | 6,406  | 5.66 GB | —                     |
+| Combined install | —      | —       | 2.2s (vs 4.3s single) |
 
 **Key finding:** File count grew modestly (16K macOS → 18K Linux CUDA), not the feared 50-100K. The 17x byte increase is driven by nvidia `.so` libraries (4.59 GB), not file count. torch is only 25% of bytes — nvidia across 33 wheels is 62%. Splitting provides marginal benefit vs the complexity cost of multiple TreeArtifacts on PYTHONPATH.
 
@@ -185,31 +185,31 @@ All 10 nvidia subpackages import correctly from flat site-packages via PYTHONPAT
 
 **Environment:** Linux 6.14.0-37-generic, ext4 root, uv 0.10.3
 
-| Location | Device | Filesystem |
-|---|---|---|
-| Home dir (`~`) | 259:2 | ext4 |
-| Default uv cache (`~/.cache/uv`) | 259:2 | ext4 |
-| Working dir (cwd) | 259:2 | ext4 |
-| `/tmp` | 0:103 | overlay |
+| Location                         | Device | Filesystem |
+| -------------------------------- | ------ | ---------- |
+| Home dir (`~`)                   | 259:2  | ext4       |
+| Default uv cache (`~/.cache/uv`) | 259:2  | ext4       |
+| Working dir (cwd)                | 259:2  | ext4       |
+| `/tmp`                           | 0:103  | overlay    |
 
 Cross-path hardlink test results:
 
-| Test | Result |
-|---|---|
-| cwd → cwd | OK (same inode, nlink=2) |
-| /tmp → /tmp | OK (same inode, nlink=2) |
-| cwd → /tmp | FAIL — `[Errno 18] Invalid cross-device link` |
+| Test        | Result                                        |
+| ----------- | --------------------------------------------- |
+| cwd → cwd   | OK (same inode, nlink=2)                      |
+| /tmp → /tmp | OK (same inode, nlink=2)                      |
+| cwd → /tmp  | FAIL — `[Errno 18] Invalid cross-device link` |
 
 **Conclusion:** `/tmp` is on a separate overlay filesystem on this system (and many CI containers).
 
 ### Experiment 2: UV_CACHE_DIR location vs hardlink dedup
 
-| Scenario | Same device? | Hardlinked files | Ratio | Verdict |
-|---|---|---|---|---|
-| Same fs (both in cwd) | YES (259:2 / 259:2) | 1003/1010 | 99% | HARDLINKS |
-| Cache in `/tmp`, venv in cwd | NO (259:2 / 0:103) | 0/1010 | 0% | NO DEDUP |
-| Both in `/tmp` | YES (0:103 / 0:103) | 1003/1010 | 99% | HARDLINKS |
-| Cache in cwd, venv in `/tmp` | NO (0:103 / 259:2) | 0/1010 | 0% | NO DEDUP |
+| Scenario                     | Same device?        | Hardlinked files | Ratio | Verdict   |
+| ---------------------------- | ------------------- | ---------------- | ----- | --------- |
+| Same fs (both in cwd)        | YES (259:2 / 259:2) | 1003/1010        | 99%   | HARDLINKS |
+| Cache in `/tmp`, venv in cwd | NO (259:2 / 0:103)  | 0/1010           | 0%    | NO DEDUP  |
+| Both in `/tmp`               | YES (0:103 / 0:103) | 1003/1010        | 99%   | HARDLINKS |
+| Cache in cwd, venv in `/tmp` | NO (0:103 / 259:2)  | 0/1010           | 0%    | NO DEDUP  |
 
 **Conclusion:** Hardlinks work **if and only if** the uv cache and the target venv are on the **same filesystem/device**. Cross-device combinations silently fall back to full copies with zero dedup.
 
@@ -217,17 +217,17 @@ Cross-path hardlink test results:
 
 Simulated CI environment with 3 test targets sharing identical deps, uv cache co-located on same filesystem.
 
-| Venv | Install time | nlink sample |
-|---|---|---|
-| Venv 1 (cold cache) | 0.15s | nlink=2 (shared with cache) |
-| Venv 2 (warm cache) | 0.06s | nlink=3 (shared with cache + venv 1) |
-| Venv 3 (warm cache) | 0.06s | nlink=4 (shared with cache + venv 1 + 2) |
+| Venv                | Install time | nlink sample                             |
+| ------------------- | ------------ | ---------------------------------------- |
+| Venv 1 (cold cache) | 0.15s        | nlink=2 (shared with cache)              |
+| Venv 2 (warm cache) | 0.06s        | nlink=3 (shared with cache + venv 1)     |
+| Venv 3 (warm cache) | 0.06s        | nlink=4 (shared with cache + venv 1 + 2) |
 
-| Component | Disk usage |
-|---|---|
-| Per-venv `du` (apparent) | 0.22 GB each |
-| **Total work dir** (counting inodes once) | **0.28 GB** |
-| Naive (3 full copies, no dedup) | ~0.70 GB |
+| Component                                 | Disk usage   |
+| ----------------------------------------- | ------------ |
+| Per-venv `du` (apparent)                  | 0.22 GB each |
+| **Total work dir** (counting inodes once) | **0.28 GB**  |
+| Naive (3 full copies, no dedup)           | ~0.70 GB     |
 
 **Conclusion:** Hardlinks are working: nlink values increase with each venv (2→3→4), total disk 0.28 GB instead of 0.70 GB (60% savings). With CUDA torch at 7.42 GB per venv, this is the difference between 5 venvs costing ~7.5 GB total vs ~37 GB.
 
@@ -608,13 +608,13 @@ pip.parse(hub_name = "pypi_legacy", ...)
 
 ### Choosing a pattern
 
-| Pattern | Products | Dep conflicts | Lock files | Complexity |
-|---|---|---|---|---|
-| 1. Single product | 1 | None | 1 | Minimal |
-| 2. Platform variants | 1 | Platform-only | 1 | Low |
-| 3. Additional test deps | Multiple suites | None (additive) | 1 | Low |
-| 4. Incompatible products | Multiple | Genuine version conflicts | N | Medium |
-| 5. Combined | Multiple | Conflicts + platform variants | N | High |
+| Pattern                  | Products        | Dep conflicts                 | Lock files | Complexity |
+| ------------------------ | --------------- | ----------------------------- | ---------- | ---------- |
+| 1. Single product        | 1               | None                          | 1          | Minimal    |
+| 2. Platform variants     | 1               | Platform-only                 | 1          | Low        |
+| 3. Additional test deps  | Multiple suites | None (additive)               | 1          | Low        |
+| 4. Incompatible products | Multiple        | Genuine version conflicts     | N          | Medium     |
+| 5. Combined              | Multiple        | Conflicts + platform variants | N          | High       |
 
 Start with Pattern 1. Move to Pattern 2 when you need GPU/CUDA variants. Use Pattern 3 freely for test-only deps. Only reach for Pattern 4 when version alignment is truly impossible.
 
@@ -910,6 +910,7 @@ exec "${PYTHON}" -B -s {{INTERPRETER_ARGS}} {{EXEC_CMD}} "$@"
 ```
 
 `{{EXEC_CMD}}` is composed by the Starlark rule:
+
 - **Default (pytest):** `"$(rlocation .../runner.py)" "$(rlocation test1.py)" ...`
 - **`main = file.py`:** `"$(rlocation .../file.py)"`
 - **`main_module = "attic.serve"`:** `-m attic.serve`
@@ -956,28 +957,28 @@ exec "${PYTHON}" -B -s {{INTERPRETER_ARGS}} {{EXEC_CMD}} "$@"
 
 All risks were prototyped or benchmarked. None remain as blockers.
 
-| Risk | Severity | Status | Resolution |
-|---|---|---|---|
-| TreeArtifact at CUDA scale (50-100K files feared) | High | **Verified** | 18K files, all ops < 5s. Feared file explosion didn't materialize. |
-| Hardlink cross-device silent fallback | Medium | **Mitigated** | Same-fs requirement + nlink check in install_packages.py. |
-| Remote cache size | Medium | **Measured** | Zstd 3.47 GB per venv. ~5-10 unique venvs limits blast radius. |
-| VERSION file escaping sandbox | Medium | **Resolved** | setuptools rejects `../../VERSION`. Fix: copy VERSION locally. |
-| nvidia namespace at CUDA scale | Medium | **Verified** | All 10 subpackages import correctly. Zero code needed. |
-| LD_LIBRARY_PATH for CUDA torch | Medium | **Verified** | torch finds `.so` via `__file__` relative paths. No launcher changes. |
-| Split-venv needed | Medium | **Verified** | Single venv fast enough. Splitting adds complexity for marginal gain. |
-| Conservative cache key causing rebuilds | Low | **Verified** | Rebuild 1.7s with warm uv cache. Wheels change rarely. |
-| PYTHONPATH scaling | Low | **Measured** | 10 entries = 200us/import. Sub-millisecond at realistic sizes. |
-| Platform wheel selection | Low | **Verified** | uv handles automatically in `--no-index --find-links` mode. |
-| Wheel build in Bazel sandbox | Low | **Verified** | `uv build` follows symlinks, works with `--no-build-isolation`. |
-| Build-time Python < 3.11 | Low | **Addressed** | tomllib fallback to tomli for 3.9/3.10. |
-| Console script shebangs broken | Low | **Verified** | `shutil.which()` finds them, `python -m` bypasses shebangs. |
-| `sys.prefix` wrong (toolchain, not venv) | Low | **Verified** | `importlib.metadata` works anyway via `sys.path`. |
-| `importlib.metadata` for source deps | Low | **Confirmed** | Raises `PackageNotFoundError` — expected. Editable install can fix if needed. |
-| pyproject.toml drift from requirements.txt | Low | **Verified** | Three-way classification catches missing deps. |
-| `--no-deps` requires full transitive closure | Low | **Confirmed** | `@pypi` wheel set IS the closure. |
-| `.pth` files not processed via PYTHONPATH | Low | **Verified** | Expected — `.pth` files only processed by `site.addsitedir()`. |
-| System site-packages leakage | Low | **Verified** | `-s` flag disables user site-packages. |
-| Namespace packages across PYTHONPATH dirs | Low | **Verified** | Python's `_NamespacePath` aggregates automatically. |
+| Risk                                              | Severity | Status        | Resolution                                                                    |
+| ------------------------------------------------- | -------- | ------------- | ----------------------------------------------------------------------------- |
+| TreeArtifact at CUDA scale (50-100K files feared) | High     | **Verified**  | 18K files, all ops < 5s. Feared file explosion didn't materialize.            |
+| Hardlink cross-device silent fallback             | Medium   | **Mitigated** | Same-fs requirement + nlink check in install_packages.py.                     |
+| Remote cache size                                 | Medium   | **Measured**  | Zstd 3.47 GB per venv. ~5-10 unique venvs limits blast radius.                |
+| VERSION file escaping sandbox                     | Medium   | **Resolved**  | setuptools rejects `../../VERSION`. Fix: copy VERSION locally.                |
+| nvidia namespace at CUDA scale                    | Medium   | **Verified**  | All 10 subpackages import correctly. Zero code needed.                        |
+| LD_LIBRARY_PATH for CUDA torch                    | Medium   | **Verified**  | torch finds `.so` via `__file__` relative paths. No launcher changes.         |
+| Split-venv needed                                 | Medium   | **Verified**  | Single venv fast enough. Splitting adds complexity for marginal gain.         |
+| Conservative cache key causing rebuilds           | Low      | **Verified**  | Rebuild 1.7s with warm uv cache. Wheels change rarely.                        |
+| PYTHONPATH scaling                                | Low      | **Measured**  | 10 entries = 200us/import. Sub-millisecond at realistic sizes.                |
+| Platform wheel selection                          | Low      | **Verified**  | uv handles automatically in `--no-index --find-links` mode.                   |
+| Wheel build in Bazel sandbox                      | Low      | **Verified**  | `uv build` follows symlinks, works with `--no-build-isolation`.               |
+| Build-time Python < 3.11                          | Low      | **Addressed** | tomllib fallback to tomli for 3.9/3.10.                                       |
+| Console script shebangs broken                    | Low      | **Verified**  | `shutil.which()` finds them, `python -m` bypasses shebangs.                   |
+| `sys.prefix` wrong (toolchain, not venv)          | Low      | **Verified**  | `importlib.metadata` works anyway via `sys.path`.                             |
+| `importlib.metadata` for source deps              | Low      | **Confirmed** | Raises `PackageNotFoundError` — expected. Editable install can fix if needed. |
+| pyproject.toml drift from requirements.txt        | Low      | **Verified**  | Three-way classification catches missing deps.                                |
+| `--no-deps` requires full transitive closure      | Low      | **Confirmed** | `@pypi` wheel set IS the closure.                                             |
+| `.pth` files not processed via PYTHONPATH         | Low      | **Verified**  | Expected — `.pth` files only processed by `site.addsitedir()`.                |
+| System site-packages leakage                      | Low      | **Verified**  | `-s` flag disables user site-packages.                                        |
+| Namespace packages across PYTHONPATH dirs         | Low      | **Verified**  | Python's `_NamespacePath` aggregates automatically.                           |
 
 ---
 
@@ -1035,35 +1036,35 @@ All risks were prototyped or benchmarked. None remain as blockers.
 
 ### vs aspect_rules_py (current)
 
-| Aspect | aspect_rules_py | rules_pythonic |
-|---|---|---|
-| Venv creation | Runtime, per test, ~87ms | Build time, cached, 0ms at test time |
-| Import mechanism | `.pth` files with `../../../../` escaping | PYTHONPATH |
-| Namespace packages | Rust recursive merge algorithm | Just works (flat site-packages) |
-| Package installation | Rust symlink/copy tool | `uv pip install --link-mode=hardlink` |
-| Package metadata | Starlark → JSON → TOML → symlink | Hand-written pyproject.toml |
-| Third-party deps in BUILD | `deps = ["@pypi//torch"]` per target | Not in BUILD files (pyproject.toml) |
-| Test runner | User's problem | pytest (opinionated default) |
-| Custom tooling | ~1700 lines Rust + fork | ~80 lines Python |
-| Maintenance | Fork of upstream, rebases required | No fork, no upstream dependency |
+| Aspect                    | aspect_rules_py                           | rules_pythonic                        |
+| ------------------------- | ----------------------------------------- | ------------------------------------- |
+| Venv creation             | Runtime, per test, ~87ms                  | Build time, cached, 0ms at test time  |
+| Import mechanism          | `.pth` files with `../../../../` escaping | PYTHONPATH                            |
+| Namespace packages        | Rust recursive merge algorithm            | Just works (flat site-packages)       |
+| Package installation      | Rust symlink/copy tool                    | `uv pip install --link-mode=hardlink` |
+| Package metadata          | Starlark → JSON → TOML → symlink          | Hand-written pyproject.toml           |
+| Third-party deps in BUILD | `deps = ["@pypi//torch"]` per target      | Not in BUILD files (pyproject.toml)   |
+| Test runner               | User's problem                            | pytest (opinionated default)          |
+| Custom tooling            | ~1700 lines Rust + fork                   | ~80 lines Python                      |
+| Maintenance               | Fork of upstream, rebases required        | No fork, no upstream dependency       |
 
 ### vs stock rules_python
 
-| Aspect | rules_python | rules_pythonic |
-|---|---|---|
-| Third-party packages | py_library wrappers with PyInfo | Wheel files, installed by uv |
-| Third-party deps | `@pypi//` in BUILD files | pyproject.toml only |
-| Import config | `PyInfo.imports` depsets | PYTHONPATH |
-| `.dist-info` | Not available | Available (real installation) |
-| Namespace packages | Broken (separate repos) | Works (flat site-packages) |
+| Aspect               | rules_python                        | rules_pythonic                                         |
+| -------------------- | ----------------------------------- | ------------------------------------------------------ |
+| Third-party packages | py_library wrappers with PyInfo     | Wheel files, installed by uv                           |
+| Third-party deps     | `@pypi//` in BUILD files            | pyproject.toml only                                    |
+| Import config        | `PyInfo.imports` depsets            | PYTHONPATH                                             |
+| `.dist-info`         | Not available                       | Available (real installation)                          |
+| Namespace packages   | Broken (separate repos)             | Works (flat site-packages)                             |
 | Multi-version Python | `python_version` attr + transitions | `--@rules_pythonic//pythonic:version` flag (tox model) |
-| Dev environment | Separate tooling needed | Standard uv workflow |
+| Dev environment      | Separate tooling needed             | Standard uv workflow                                   |
 
 ### vs Pants
 
-| Aspect | Pants | rules_pythonic |
-|---|---|---|
-| Python support | First-class, Pythonic | Bolt-on to Bazel, but Pythonic |
-| C++/MLIR support | Limited | Full (Bazel native) |
-| Migration cost | Multi-quarter, high risk | Incremental, per-phase |
-| Lock file | Native support | Per-platform requirements.txt |
+| Aspect           | Pants                    | rules_pythonic                 |
+| ---------------- | ------------------------ | ------------------------------ |
+| Python support   | First-class, Pythonic    | Bolt-on to Bazel, but Pythonic |
+| C++/MLIR support | Limited                  | Full (Bazel native)            |
+| Migration cost   | Multi-quarter, high risk | Incremental, per-phase         |
+| Lock file        | Native support           | Per-platform requirements.txt  |

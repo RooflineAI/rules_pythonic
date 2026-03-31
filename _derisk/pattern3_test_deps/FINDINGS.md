@@ -41,6 +41,7 @@ than `source = { editable = "..." }`, which is correct -- they are not installab
 packages, just dependency containers.
 
 Lock file entries:
+
 - `core`: `source = { editable = "packages/core" }` (real package with build-system)
 - `integration-tests`: `source = { virtual = "integration-tests" }` (virtual member)
 - `load-tests`: `source = { virtual = "load-tests" }` (virtual member)
@@ -80,15 +81,19 @@ tracked in the lock file under `[package.dev-dependencies]`.
 **VALIDATED.** The `uv export` command provides fine-grained control:
 
 ### Export everything (all packages, all groups):
+
 ```bash
 uv export --all-packages --all-extras --all-groups --no-hashes --no-emit-workspace
 ```
+
 Result: requests, httpx, respx, locust + all transitive deps (50 packages total).
 
 ### Export production only (no dev groups):
+
 ```bash
 uv export --all-packages --all-extras --no-dev --no-hashes --no-emit-workspace
 ```
+
 Result: requests, httpx, respx + transitive deps. **locust excluded.**
 
 **Important nuance:** httpx and respx still appear because they are in
@@ -97,26 +102,30 @@ To make them excludable with `--no-dev`, they should be in `[dependency-groups]`
 instead.
 
 ### Export only a specific package's production deps:
+
 ```bash
 uv export --package core --no-dev --no-hashes --no-emit-workspace
 ```
+
 Result: Only requests + transitive deps (certifi, charset-normalizer, idna, urllib3).
 **Cleanest production export.**
 
 ### Export only a specific dependency group:
+
 ```bash
 uv export --all-packages --only-group test --no-hashes --no-emit-workspace
 ```
+
 Result: Only locust + transitive deps.
 
 ---
 
 ## Finding 4: `[project].dependencies` vs `[dependency-groups]` -- key difference
 
-| Approach | Where deps declared | Appears with `--no-dev`? | Appears with `--only-group test`? |
-|---|---|---|---|
-| integration-tests | `[project].dependencies` | YES (always included) | NO |
-| load-tests | `[dependency-groups].test` | NO (excluded) | YES |
+| Approach          | Where deps declared        | Appears with `--no-dev`? | Appears with `--only-group test`? |
+| ----------------- | -------------------------- | ------------------------ | --------------------------------- |
+| integration-tests | `[project].dependencies`   | YES (always included)    | NO                                |
+| load-tests        | `[dependency-groups].test` | NO (excluded)            | YES                               |
 
 **Recommendation:** For test-only deps that should NEVER appear in production exports,
 use `[dependency-groups]` (PEP 735). For deps that are fine to include broadly, use
@@ -134,15 +143,15 @@ transitive third-party dependencies appear.
 
 ## Summary of Validated Patterns
 
-| Pattern | Works? | Notes |
-|---|---|---|
-| Minimal `[project]`-only pyproject.toml as workspace member | YES | Tracked as `virtual` source in lock file |
-| `[dependency-groups]`-only pyproject.toml (no `[project]`) | NO | Requires `[project]` stub as workaround |
-| `[dependency-groups]` alongside `[project]` stub | YES | Deps tracked under `[package.dev-dependencies]` |
-| Selective export with `--no-dev` | YES | Excludes `[dependency-groups]` but keeps `[project].dependencies` |
-| Selective export with `--only-group <name>` | YES | Exports only that group's deps |
-| Selective export with `--package <name>` | YES | Exports only that package's dep tree |
-| `--no-emit-workspace` excludes workspace members | YES | Only third-party deps in output |
+| Pattern                                                     | Works? | Notes                                                             |
+| ----------------------------------------------------------- | ------ | ----------------------------------------------------------------- |
+| Minimal `[project]`-only pyproject.toml as workspace member | YES    | Tracked as `virtual` source in lock file                          |
+| `[dependency-groups]`-only pyproject.toml (no `[project]`)  | NO     | Requires `[project]` stub as workaround                           |
+| `[dependency-groups]` alongside `[project]` stub            | YES    | Deps tracked under `[package.dev-dependencies]`                   |
+| Selective export with `--no-dev`                            | YES    | Excludes `[dependency-groups]` but keeps `[project].dependencies` |
+| Selective export with `--only-group <name>`                 | YES    | Exports only that group's deps                                    |
+| Selective export with `--package <name>`                    | YES    | Exports only that package's dep tree                              |
+| `--no-emit-workspace` excludes workspace members            | YES    | Only third-party deps in output                                   |
 
 ---
 

@@ -9,5 +9,6 @@ from pydantic import BaseModel
 
 class SharedModel(BaseModel):
     """A model that works with any pydantic version."""
+
     id: str
     label: str = ""

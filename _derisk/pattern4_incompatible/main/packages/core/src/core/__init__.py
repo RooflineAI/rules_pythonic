@@ -5,5 +5,6 @@ from pydantic import BaseModel
 
 class CoreModel(BaseModel):
     """A simple model using pydantic v2 features."""
+
     name: str
     value: int = 0
