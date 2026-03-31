@@ -106,9 +106,10 @@ When these two layers diverge:
 - A dependency in `requirements.txt` but not in `pyproject.toml` is silently
   installed (all `@pypi` wheels are available to the action).
 
-To add a new third-party dependency: add it to `pyproject.toml`, regenerate
-the lockfile (e.g. `uv pip compile --all-packages -o requirements.txt`), then
-run `bazel mod tidy --lockfile_mode=refresh`.
+To add a new third-party dependency: add it to `pyproject.toml`, then
+regenerate the lockfile (e.g. `uv pip compile --all-packages -o requirements.txt`).
+Bazel picks up the change on next build — `pip.parse` re-evaluates the
+repo rule when `requirements.txt` changes.
 
 ## Setup
 
