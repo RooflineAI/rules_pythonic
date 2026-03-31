@@ -196,6 +196,9 @@ def pythonic_test(name, wheels = ["//:all_wheels"], extras = ["test"], env = {},
         **kwargs: All other attrs forwarded to the rule (srcs, deps, main,
             main_module, interpreter_args, data, conftest, size, timeout, tags).
     """
+    if kwargs.get("main") and kwargs.get("main_module"):
+        fail("pythonic_test accepts main or main_module, not both")
+
     _pythonic_inner_test(
         name = name,
         wheels = wheels,
