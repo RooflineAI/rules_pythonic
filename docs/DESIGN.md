@@ -471,6 +471,19 @@ Three layers work together:
 | Cached build (no changes) | Nothing                                 | 0s                          |
 | Clean build (no uv cache) | Everything                              | ~46s (macOS) / ~17s (Linux) |
 
+### Hermeticity trade-offs
+
+Standard Bazel actions run in a sandbox where everything outside the declared inputs and outputs is read-only or invisible. `PythonicInstall` and `PythonicWheel` relax this: `--sandbox_writable_path` grants the action write access to the uv cache directory on the host filesystem, and uv reads from and writes to that cache during installation.
+
+What this means in practice:
+
+- **The uv cache is shared mutable state outside Bazel's dependency graph.** Bazel does not track its contents as an input or output. If the cache is corrupted or deleted between builds, the action re-extracts from wheels (slower but correct). If the cache is modified by a process outside Bazel, the action may produce different hardlinked output — but since wheels are content-addressed by version, this only matters if the cache is actively tampered with.
+- **`sandbox_writable_path` is a local sandbox concept.** On Linux it adds a writable mount to the namespace; on macOS it adds an `(allow file-write* (subpath ...))` rule to the sandbox-exec profile. It has no effect on remote execution — the `RemoteExecutionService` does not read `SandboxOptions` at all. A remotely executed `PythonicInstall` would not have access to the host's uv cache and would need wheels provided through other means.
+- **`--action_env=UV_CACHE_DIR` is resolved on the Bazel client.** `ActionEnvironment.resolve()` evaluates inherited and fixed env vars against the client's environment before the spawn is created. For remote execution, the remote worker receives the resolved value (e.g., `/home/ci/.cache/uv`), but that path may not exist on the remote machine. The action would fail with uv's "UV_CACHE_DIR not set" error or a filesystem error if the path doesn't exist remotely.
+- **Remote execution requires a different strategy.** Since neither `sandbox_writable_path` nor the local uv cache are available remotely, `PythonicInstall` on RBE would need one of: (a) a pre-populated uv cache on workers at a well-known path, (b) falling back to `--link-mode=copy` with no cache, or (c) relying entirely on Bazel's remote action cache to avoid re-running the action. Option (c) is the most practical — once the `PythonicInstall` TreeArtifact is in the remote cache, the action is never re-executed and the uv cache is irrelevant.
+
+None of these trade-offs affect correctness for local or CI builds where `UV_CACHE_DIR` and `sandbox_writable_path` are configured as documented. The relaxation is purely a performance optimization — hardlinks avoid copying gigabytes of wheel content into each TreeArtifact.
+
 ---
 
 ## Monorepo pyproject.toml Layout
