@@ -1,1 +1,0 @@
-/Users/bartel/Documents/newclone/newpythonrules/_derisk/exp1_wheel_build/sandbox_v2/repo_root/packages/mypkg/src/mypkg/__init__.py

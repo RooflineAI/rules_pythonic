@@ -1,8 +1,0 @@
-numpy==2.4.2
-    # via
-    #   -r legacy/requirements-cuda11.txt
-    #   scipy
-scipy==1.17.0
-    # via -r legacy/requirements-cuda11.txt
-urllib3==1.26.20
-    # via -r legacy/requirements-cuda11.txt

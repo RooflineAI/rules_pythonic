@@ -1,11 +1,5 @@
 # How to Contribute
 
-## Using devcontainers
-
-If you are using [devcontainers](https://code.visualstudio.com/docs/devcontainers/containers)
-and/or [codespaces](https://github.com/features/codespaces) then you can start
-contributing immediately and skip the next step.
-
 ## Formatting
 
 Starlark files should be formatted by buildifier.
@@ -21,26 +15,30 @@ Otherwise later tooling on CI will yell at you about formatting/linting violatio
 
 ## Updating BUILD files
 
-Some targets are generated from sources.
-Currently this is just the `bzl_library` targets.
-Run `bazel run //:gazelle` to keep them up-to-date.
+BUILD files are maintained manually. Do not use gazelle.
 
 ## Using this as a development dependency of other rules
 
-You'll commonly find that you develop in another WORKSPACE, such as
-some other ruleset that depends on rules_pythonic, or in a nested
-WORKSPACE in the integration_tests folder.
-
 To always tell Bazel to use this directory rather than some release
-artifact or a version fetched from the internet, run this from this
-directory:
+artifact or a version fetched from the internet, run this from the
+repo root:
 
 ```sh
-OVERRIDE="--override_repository=rules_pythonic=$(pwd)/rules_pythonic"
-echo "common $OVERRIDE" >> ~/.bazelrc
+echo "common --override_repository=rules_pythonic=$(pwd)" >> ~/.bazelrc
 ```
 
 This means that any usage of `@rules_pythonic` on your system will point to this folder.
+
+## Running tests
+
+```sh
+uv run pytest pythonic/private/tests/    # Python unit tests (fast, no Bazel)
+bazel test //e2e/smoke:*                 # End-to-end smoke tests
+```
+
+E2e smoke tests require a `user.bazelrc` with `UV_CACHE_DIR` and
+`sandbox_writable_path` configured. See the Consumer Setup section
+in CLAUDE.md.
 
 ## Releasing
 
@@ -51,7 +49,7 @@ If you do nothing, eventually the newest commits will be released automatically 
 This automation is defined in .github/workflows/tag.yaml.
 
 Rather than wait for the cron event, you can trigger manually. Navigate to
-https://github.com/pythonicorg/rules_pythonic/actions/workflows/tag.yaml
+https://github.com/RooflineAI/rules_pythonic/actions/workflows/tag.yaml
 and press the "Run workflow" button.
 
 If you need control over the next release version, for example when making a release candidate for a new major,

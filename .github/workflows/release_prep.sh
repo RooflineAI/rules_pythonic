@@ -43,7 +43,7 @@ http_archive(
     name = "rules_pythonic",
     sha256 = "${SHA}",
     strip_prefix = "${PREFIX}",
-    url = "https://github.com/pythonicorg/rules_pythonic/releases/download/${TAG}/${ARCHIVE}",
+    url = "https://github.com/RooflineAI/rules_pythonic/releases/download/${TAG}/${ARCHIVE}",
 )
 EOF
 
