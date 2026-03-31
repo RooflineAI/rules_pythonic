@@ -116,7 +116,7 @@ repo rule when `requirements.txt` changes.
 Requires Bazel 8+. Add to `MODULE.bazel`:
 
 ```starlark
-bazel_dep(name = "rules_pythonic", version = "0.0.1")
+bazel_dep(name = "rules_pythonic", version = "0.0.2")
 bazel_dep(name = "rules_python", version = "1.9.0")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
