@@ -62,7 +62,7 @@ Key files:
 - `uv` handles platform wheel selection automatically (no Starlark `select()`)
 - Namespace packages work implicitly via flat site-packages
 - PYTHONPATH ordering: first-party shadows third-party
-- `PythonicInstall` and `PythonicWheel` do not set `use_default_shell_env` — consumers pass `UV_CACHE_DIR` via `--action_env` which Bazel forwards to the action without leaking the full host environment
+- `PythonicInstall` and `PythonicWheel` pass only `UV_CACHE_DIR` via explicit `env` dict (read from `ctx.configuration.default_shell_env`), avoiding `use_default_shell_env = True` which leaks the host environment when `--incompatible_strict_action_env` is not set
 - Wheel building is backend-agnostic: whatever `[build-system]` the pyproject.toml declares, `uv build` invokes it. Build backend wheels come from `@pypi` via `--no-index --find-links`.
 - For assembled packages (e.g. `copy_to_directory` output), `src_prefix` tells the wheel staging script what path to strip
 - External repo rlocation paths strip the `../` prefix (same pattern as rules_python and rules_cc)

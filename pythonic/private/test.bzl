@@ -1,6 +1,6 @@
 "pythonic_test — macro + rule for Python test targets with third-party packages."
 
-load(":common.bzl", "build_env_exports", "build_pythonpath", "collect_dep_info", "rlocation_path")
+load(":common.bzl", "build_env_exports", "build_pythonpath", "collect_dep_info", "rlocation_path", "uv_action_env")
 load(":providers.bzl", "PythonicPackageInfo")
 
 _PY_TOOLCHAIN = "@bazel_tools//tools/python:toolchain_type"
@@ -90,6 +90,7 @@ def _pythonic_test_impl(ctx):
         tools = [uv],
         mnemonic = "PythonicInstall",
         progress_message = "Installing packages for %{label}",
+        env = uv_action_env(ctx),
     )
 
     launcher = ctx.actions.declare_file(ctx.label.name + ".sh")
