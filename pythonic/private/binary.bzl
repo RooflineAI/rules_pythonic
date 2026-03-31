@@ -63,6 +63,7 @@ def _pythonic_binary_impl(ctx):
         mnemonic = "PythonicInstall",
         progress_message = "Installing packages for %{label}",
         env = uv_action_env(ctx),
+        execution_requirements = {"no-remote-exec": ""},
     )
 
     launcher = ctx.actions.declare_file(ctx.label.name + ".sh")

@@ -63,6 +63,7 @@ Key files:
 - Namespace packages work implicitly via flat site-packages
 - PYTHONPATH ordering: first-party shadows third-party
 - `PythonicInstall` and `PythonicWheel` pass only `UV_CACHE_DIR` via explicit `env` dict (read from `ctx.configuration.default_shell_env`), avoiding `use_default_shell_env = True` which leaks the host environment when `--incompatible_strict_action_env` is not set
+- `PythonicInstall` and `PythonicWheel` are tagged `no-remote-exec` so they always run locally (where the uv cache and sandbox_writable_path work) and upload results to the remote cache for remote workers to consume
 - Wheel building is backend-agnostic: whatever `[build-system]` the pyproject.toml declares, `uv build` invokes it. Build backend wheels come from `@pypi` via `--no-index --find-links`.
 - For assembled packages (e.g. `copy_to_directory` output), `src_prefix` tells the wheel staging script what path to strip
 - External repo rlocation paths strip the `../` prefix (same pattern as rules_python and rules_cc)
