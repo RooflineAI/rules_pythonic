@@ -46,29 +46,34 @@ def collect_dep_info(deps):
     first_party_wheel_dirs = []
     dep_runfiles = []
 
-    # First pass: collect all infos and identify which packages have wheels.
-    # wheel_packages tracks package_name -> wheel File for dedup.
-    all_infos = []
-    wheel_packages = {}
+    # Collect direct infos and transitive depsets separately so we can
+    # merge the depsets once instead of flattening per-dep (O(n^2)).
+    direct_infos = []
+    transitive_depsets = []
 
     for dep in deps:
         if PythonicPackageInfo in dep:
             info = dep[PythonicPackageInfo]
-            all_infos.append(info)
-            if info.wheel:
-                wheel_packages[info.package_name] = info.wheel
-
-            for trans in info.first_party_deps.to_list():
-                all_infos.append(trans)
-                if trans.wheel:
-                    wheel_packages[trans.package_name] = trans.wheel
+            direct_infos.append(info)
+            transitive_depsets.append(info.first_party_deps)
 
         dep_runfiles.append(dep[DefaultInfo].default_runfiles)
 
-    # Second pass: partition into wheel deps vs source deps.
-    # Wheel wins: if a package appears in wheel_packages, it gets installed
-    # as a wheel regardless of whether it also appears as a source dep.
+    # Single materialization with depset-level dedup.
+    all_infos = direct_infos + depset(transitive = transitive_depsets).to_list()
+
+    # Partition into wheel deps vs source deps. Wheel wins: if a package
+    # appears with a wheel, it gets installed as a wheel regardless of
+    # whether it also appears as a source dep.
     seen_names = {}
+    wheel_packages = {}
+
+    # First pass: identify which packages have wheels.
+    for info in all_infos:
+        if info.wheel and info.package_name not in wheel_packages:
+            wheel_packages[info.package_name] = info.wheel
+
+    # Second pass: partition, deduplicating by package_name.
     for info in all_infos:
         if info.package_name in seen_names:
             continue

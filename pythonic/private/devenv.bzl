@@ -29,22 +29,25 @@ def _collect_devenv_info(ctx, deps):
     first_party_wheel_dirs = []
     dep_runfiles = []
 
-    all_infos = []
-    wheel_packages = {}
+    direct_infos = []
+    transitive_depsets = []
 
     for dep in deps:
         if PythonicPackageInfo in dep:
             info = dep[PythonicPackageInfo]
-            all_infos.append(info)
-            if info.wheel:
-                wheel_packages[info.package_name] = info.wheel
-
-            for trans in info.first_party_deps.to_list():
-                all_infos.append(trans)
-                if trans.wheel:
-                    wheel_packages[trans.package_name] = trans.wheel
+            direct_infos.append(info)
+            transitive_depsets.append(info.first_party_deps)
 
         dep_runfiles.append(dep[DefaultInfo].default_runfiles)
+
+    # Single materialization with depset-level dedup.
+    all_infos = direct_infos + depset(transitive = transitive_depsets).to_list()
+
+    # Identify which packages have wheels (wheel wins over source).
+    wheel_packages = {}
+    for info in all_infos:
+        if info.wheel and info.package_name not in wheel_packages:
+            wheel_packages[info.package_name] = info.wheel
 
     seen_names = {}
     for info in all_infos:
