@@ -1,5 +1,6 @@
 "pythonic_package rule — declares a Python package for rules_pythonic."
 
+load(":common.bzl", "uv_action_env")
 load(":providers.bzl", "PythonicPackageInfo")
 
 _PY_TOOLCHAIN = "@bazel_tools//tools/python:toolchain_type"
@@ -123,7 +124,7 @@ def _pythonic_wheel_impl(ctx):
         tools = [uv],
         mnemonic = "PythonicWheel",
         progress_message = "Building wheel for %{label}",
-        use_default_shell_env = True,
+        env = uv_action_env(ctx),
     )
 
     # Build first_party_deps from deps, mirroring _pythonic_package_impl.

@@ -117,6 +117,26 @@ def build_pythonpath(ctx, package_src_roots):
         return ""
     return ":".join(entries) + ":"
 
+def uv_action_env(ctx):
+    """Extract UV_CACHE_DIR from --action_env for use in ctx.actions.run(env=...).
+
+    Reads the fixed action environment (populated by --action_env=K=V flags)
+    and returns a dict containing only UV_CACHE_DIR.  This avoids
+    use_default_shell_env=True, which leaks the full host environment into the
+    action when --incompatible_strict_action_env is not set.
+
+    Args:
+        ctx: Rule context.
+
+    Returns:
+        dict[str, str] with UV_CACHE_DIR if present, empty dict otherwise.
+    """
+    shell_env = ctx.configuration.default_shell_env
+    uv_cache = shell_env.get("UV_CACHE_DIR")
+    if uv_cache:
+        return {"UV_CACHE_DIR": uv_cache}
+    return {}
+
 def build_env_exports(env_dict):
     """Build shell export lines from a string dict.
 

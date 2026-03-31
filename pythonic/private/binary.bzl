@@ -1,6 +1,6 @@
 "pythonic_binary — macro + rule for executable Python targets with third-party packages."
 
-load(":common.bzl", "build_env_exports", "build_pythonpath", "collect_dep_info", "rlocation_path")
+load(":common.bzl", "build_env_exports", "build_pythonpath", "collect_dep_info", "rlocation_path", "uv_action_env")
 load(":providers.bzl", "PythonicPackageInfo")
 
 _PY_TOOLCHAIN = "@bazel_tools//tools/python:toolchain_type"
@@ -62,7 +62,7 @@ def _pythonic_binary_impl(ctx):
         tools = [uv],
         mnemonic = "PythonicInstall",
         progress_message = "Installing packages for %{label}",
-        use_default_shell_env = True,
+        env = uv_action_env(ctx),
     )
 
     launcher = ctx.actions.declare_file(ctx.label.name + ".sh")
