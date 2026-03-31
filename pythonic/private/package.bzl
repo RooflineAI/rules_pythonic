@@ -123,7 +123,6 @@ def _pythonic_wheel_impl(ctx):
         tools = [uv],
         mnemonic = "PythonicWheel",
         progress_message = "Building wheel for %{label}",
-        use_default_shell_env = True,
     )
 
     # Build first_party_deps from deps, mirroring _pythonic_package_impl.

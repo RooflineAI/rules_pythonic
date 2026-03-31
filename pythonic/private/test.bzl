@@ -90,7 +90,6 @@ def _pythonic_test_impl(ctx):
         tools = [uv],
         mnemonic = "PythonicInstall",
         progress_message = "Installing packages for %{label}",
-        use_default_shell_env = True,
     )
 
     launcher = ctx.actions.declare_file(ctx.label.name + ".sh")
