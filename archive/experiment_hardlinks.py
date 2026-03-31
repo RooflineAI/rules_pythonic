@@ -5,8 +5,8 @@ Experiment 1: Where are the filesystem boundaries?
 Maps out which paths are on which filesystem/device.
 This tells us where hardlinks CAN and CANNOT work.
 """
+
 import os
-import tempfile
 
 paths_to_check = [
     ("Home dir (~)", os.path.expanduser("~")),
@@ -57,7 +57,9 @@ for label, path in paths_to_check:
 for dev, labels in devices.items():
     dev_str = f"{os.major(dev)}:{os.minor(dev)}"
     if len(labels) > 1:
-        print(f"  Device {dev_str}: {', '.join(labels)} — hardlinks WILL work between these")
+        print(
+            f"  Device {dev_str}: {', '.join(labels)} — hardlinks WILL work between these"
+        )
     else:
         print(f"  Device {dev_str}: {labels[0]} — isolated")
 
@@ -81,10 +83,14 @@ for label, src_dir, dst_dir in test_pairs:
         dst_ino = os.stat(dst).st_ino
         nlink = os.stat(src).st_nlink
         same = src_ino == dst_ino and nlink > 1
-        print(f"  {label:<20s} {'OK — same inode, nlink=' + str(nlink) if same else 'FAIL — different inodes'}")
+        print(
+            f"  {label:<20s} {'OK — same inode, nlink=' + str(nlink) if same else 'FAIL — different inodes'}"
+        )
     except OSError as e:
         print(f"  {label:<20s} FAIL — {e}")
     finally:
         for f in [src, dst]:
-            try: os.unlink(f)
-            except: pass
+            try:
+                os.unlink(f)
+            except:
+                pass

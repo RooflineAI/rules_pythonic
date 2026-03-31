@@ -7,6 +7,7 @@ source file. This script validates:
 2. pytest actually loads conftest.py from all expected levels
 3. Edge cases (no conftest, deeply nested, multiple test dirs)
 """
+
 import os
 import subprocess
 import sys
@@ -53,13 +54,16 @@ def test_algorithm_correctness():
     """Test that the walk-up algorithm finds the right conftest.py files."""
     print("=== Test: conftest.py walk-up algorithm ===")
     with tempfile.TemporaryDirectory() as tmpdir:
-        create_tree(tmpdir, {
-            "packages/attic/conftest.py": "# package root conftest\n",
-            "packages/attic/tests/conftest.py": "# tests dir conftest\n",
-            "packages/attic/tests/unit/conftest.py": "# unit dir conftest\n",
-            "packages/attic/tests/unit/test_foo.py": "def test_foo(): pass\n",
-            "packages/attic/tests/integration/test_bar.py": "def test_bar(): pass\n",
-        })
+        create_tree(
+            tmpdir,
+            {
+                "packages/attic/conftest.py": "# package root conftest\n",
+                "packages/attic/tests/conftest.py": "# tests dir conftest\n",
+                "packages/attic/tests/unit/conftest.py": "# unit dir conftest\n",
+                "packages/attic/tests/unit/test_foo.py": "def test_foo(): pass\n",
+                "packages/attic/tests/integration/test_bar.py": "def test_bar(): pass\n",
+            },
+        )
 
         pkg_root = os.path.join(tmpdir, "packages/attic")
 
@@ -74,7 +78,9 @@ def test_algorithm_correctness():
             os.path.join(pkg_root, "tests/unit/conftest.py"),
         ]
         assert conftests == expected, f"Expected {expected}, got {conftests}"
-        print(f"  PASS: Nested test finds 3 conftest.py files (root, tests/, tests/unit/)")
+        print(
+            "  PASS: Nested test finds 3 conftest.py files (root, tests/, tests/unit/)"
+        )
 
         # Test sibling dir (no unit conftest)
         conftests = find_conftest_files(
@@ -86,62 +92,66 @@ def test_algorithm_correctness():
             os.path.join(pkg_root, "tests/conftest.py"),
         ]
         assert conftests == expected, f"Expected {expected}, got {conftests}"
-        print(f"  PASS: Integration test finds 2 conftest.py files (root, tests/)")
+        print("  PASS: Integration test finds 2 conftest.py files (root, tests/)")
 
 
 def test_pytest_actually_loads_them():
     """Create a real file tree and verify pytest loads all conftest.py files."""
     print("\n=== Test: pytest loads conftest.py from all levels ===")
     with tempfile.TemporaryDirectory() as tmpdir:
-        create_tree(tmpdir, {
-            # conftest at package root: provides a fixture
-            "conftest.py": (
-                'import pytest\n'
-                '@pytest.fixture\n'
-                'def root_fixture():\n'
-                '    return "from_root"\n'
-            ),
-            # conftest at tests/: provides another fixture
-            "tests/conftest.py": (
-                'import pytest\n'
-                '@pytest.fixture\n'
-                'def tests_fixture():\n'
-                '    return "from_tests_dir"\n'
-            ),
-            # conftest at tests/unit/: provides another fixture
-            "tests/unit/conftest.py": (
-                'import pytest\n'
-                '@pytest.fixture\n'
-                'def unit_fixture():\n'
-                '    return "from_unit_dir"\n'
-            ),
-            # Test that uses all three fixtures
-            "tests/unit/test_all_fixtures.py": (
-                'def test_all_fixtures(root_fixture, tests_fixture, unit_fixture):\n'
-                '    assert root_fixture == "from_root"\n'
-                '    assert tests_fixture == "from_tests_dir"\n'
-                '    assert unit_fixture == "from_unit_dir"\n'
-            ),
-            # Test in sibling dir - only sees root + tests conftest
-            "tests/integration/test_partial.py": (
-                'import pytest\n'
-                'def test_partial(root_fixture, tests_fixture):\n'
-                '    assert root_fixture == "from_root"\n'
-                '    assert tests_fixture == "from_tests_dir"\n'
-                '\n'
-                'def test_no_unit_fixture():\n'
-                '    """unit_fixture should NOT be available here."""\n'
-                '    import inspect\n'
-                '    frame = inspect.currentframe()\n'
-                '    # This would fail if unit_fixture leaked across sibling dirs\n'
-                '    pass\n'
-            ),
-        })
+        create_tree(
+            tmpdir,
+            {
+                # conftest at package root: provides a fixture
+                "conftest.py": (
+                    "import pytest\n"
+                    "@pytest.fixture\n"
+                    "def root_fixture():\n"
+                    '    return "from_root"\n'
+                ),
+                # conftest at tests/: provides another fixture
+                "tests/conftest.py": (
+                    "import pytest\n"
+                    "@pytest.fixture\n"
+                    "def tests_fixture():\n"
+                    '    return "from_tests_dir"\n'
+                ),
+                # conftest at tests/unit/: provides another fixture
+                "tests/unit/conftest.py": (
+                    "import pytest\n"
+                    "@pytest.fixture\n"
+                    "def unit_fixture():\n"
+                    '    return "from_unit_dir"\n'
+                ),
+                # Test that uses all three fixtures
+                "tests/unit/test_all_fixtures.py": (
+                    "def test_all_fixtures(root_fixture, tests_fixture, unit_fixture):\n"
+                    '    assert root_fixture == "from_root"\n'
+                    '    assert tests_fixture == "from_tests_dir"\n'
+                    '    assert unit_fixture == "from_unit_dir"\n'
+                ),
+                # Test in sibling dir - only sees root + tests conftest
+                "tests/integration/test_partial.py": (
+                    "import pytest\n"
+                    "def test_partial(root_fixture, tests_fixture):\n"
+                    '    assert root_fixture == "from_root"\n'
+                    '    assert tests_fixture == "from_tests_dir"\n'
+                    "\n"
+                    "def test_no_unit_fixture():\n"
+                    '    """unit_fixture should NOT be available here."""\n'
+                    "    import inspect\n"
+                    "    frame = inspect.currentframe()\n"
+                    "    # This would fail if unit_fixture leaked across sibling dirs\n"
+                    "    pass\n"
+                ),
+            },
+        )
 
         # Run pytest
         result = subprocess.run(
             [sys.executable, "-m", "pytest", "-v", tmpdir],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         print(f"  pytest exit code: {result.returncode}")
         for line in result.stdout.splitlines():
@@ -167,16 +177,20 @@ def test_starlark_glob_pattern():
     """
     print("\n=== Test: Starlark conftest.py collection pattern ===")
     with tempfile.TemporaryDirectory() as tmpdir:
-        create_tree(tmpdir, {
-            "packages/attic/conftest.py": "",
-            "packages/attic/tests/conftest.py": "",
-            "packages/attic/tests/unit/conftest.py": "",
-            "packages/attic/tests/integration/conftest.py": "",
-            "packages/attic/src/attic/conftest.py": "",  # should NOT be collected (in src)
-        })
+        create_tree(
+            tmpdir,
+            {
+                "packages/attic/conftest.py": "",
+                "packages/attic/tests/conftest.py": "",
+                "packages/attic/tests/unit/conftest.py": "",
+                "packages/attic/tests/integration/conftest.py": "",
+                "packages/attic/src/attic/conftest.py": "",  # should NOT be collected (in src)
+            },
+        )
 
         # Simulate: glob(["**/conftest.py"]) from packages/attic/tests/
         import glob as globmod
+
         pkg_root = os.path.join(tmpdir, "packages/attic")
 
         # The macro should collect conftest.py from:
@@ -184,7 +198,9 @@ def test_starlark_glob_pattern():
         # 2. Up from each test file to the package root
 
         # Simplest approach: glob all conftest.py under tests/
-        tests_conftests = globmod.glob(os.path.join(pkg_root, "tests/**/conftest.py"), recursive=True)
+        tests_conftests = globmod.glob(
+            os.path.join(pkg_root, "tests/**/conftest.py"), recursive=True
+        )
         root_conftest = os.path.join(pkg_root, "conftest.py")
 
         all_conftests = []
@@ -192,13 +208,15 @@ def test_starlark_glob_pattern():
             all_conftests.append(root_conftest)
         all_conftests.extend(sorted(tests_conftests))
 
-        print(f"  Collected conftest.py files (relative to package root):")
+        print("  Collected conftest.py files (relative to package root):")
         for cf in all_conftests:
             print(f"    {os.path.relpath(cf, pkg_root)}")
 
         # Should NOT include src/attic/conftest.py
         src_conftest = os.path.join(pkg_root, "src/attic/conftest.py")
-        assert src_conftest not in all_conftests, "src/attic/conftest.py should not be collected"
+        assert src_conftest not in all_conftests, (
+            "src/attic/conftest.py should not be collected"
+        )
         print("  PASS: src/attic/conftest.py correctly excluded")
         print(f"  PASS: Collected {len(all_conftests)} conftest.py files")
 

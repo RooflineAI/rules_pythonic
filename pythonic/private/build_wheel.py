@@ -7,6 +7,7 @@ to `uv build --wheel` which invokes the PEP 517 build backend declared in
 the pyproject.toml.
 
 """
+
 import argparse
 import pathlib
 import subprocess
@@ -28,9 +29,13 @@ def build_wheel(
     output_dir = str(pathlib.Path(output_dir).resolve())
 
     cmd = [
-        uv_bin, "build", "--wheel",
-        "--python", python_bin,
-        "--out-dir", output_dir,
+        uv_bin,
+        "build",
+        "--wheel",
+        "--python",
+        python_bin,
+        "--out-dir",
+        output_dir,
         "--no-index",
     ]
     for d in wheel_dirs:
@@ -48,9 +53,12 @@ def main() -> None:
     parser.add_argument("--pyproject", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--src-files", nargs="*", default=[])
-    parser.add_argument("--src-prefix", default=None,
-                        help="Prefix to strip from src file paths. "
-                             "Defaults to pyproject.toml's parent directory.")
+    parser.add_argument(
+        "--src-prefix",
+        default=None,
+        help="Prefix to strip from src file paths. "
+        "Defaults to pyproject.toml's parent directory.",
+    )
     parser.add_argument("--wheel-dirs", nargs="*", default=[])
     args = parser.parse_args()
 

@@ -7,6 +7,7 @@ Questions:
 2. Do we need a fallback for Python 3.10/3.9?
 3. What's the simplest fallback approach?
 """
+
 import sys
 
 
@@ -16,15 +17,17 @@ def test_tomllib_import():
 
     try:
         import tomllib
-        print(f"  PASS: tomllib available (stdlib)")
+
+        print("  PASS: tomllib available (stdlib)")
     except ImportError:
-        print(f"  INFO: tomllib not available (Python < 3.11)")
-        print(f"  Checking for tomli fallback...")
+        print("  INFO: tomllib not available (Python < 3.11)")
+        print("  Checking for tomli fallback...")
         try:
             import tomli as tomllib
-            print(f"  PASS: tomli available as fallback")
+
+            print("  PASS: tomli available as fallback")
         except ImportError:
-            print(f"  FAIL: Neither tomllib nor tomli available")
+            print("  FAIL: Neither tomllib nor tomli available")
 
 
 def test_tomllib_parsing():
@@ -85,7 +88,7 @@ python_version = "3.11"
     print(f"  gpu extras: {gpu_deps}")
     assert len(test_deps) == 2
     assert len(gpu_deps) == 2
-    print(f"  PASS: Parsed optional-dependencies groups")
+    print("  PASS: Parsed optional-dependencies groups")
 
     # Verify name
     assert pp["project"]["name"] == "attic"
@@ -115,28 +118,28 @@ else:
     # Execute it
     exec(compat_code)
     print(f"  PASS: Compat import pattern works on Python {sys.version.split()[0]}")
-    print(f"  NOTE: For Python 3.11+, no external dependency needed")
-    print(f"  NOTE: For Python 3.9/3.10, must provide tomli as build dep")
+    print("  NOTE: For Python 3.11+, no external dependency needed")
+    print("  NOTE: For Python 3.9/3.10, must provide tomli as build dep")
 
 
 def test_minimum_python_version():
     """Check what Python versions are realistic for roof_py."""
-    print(f"\n=== Test: Python version assessment ===")
+    print("\n=== Test: Python version assessment ===")
     print(f"  Current Python: {sys.version}")
     print(f"  tomllib available: {sys.version_info >= (3, 11)}")
 
     # Python 3.9 EOL: 2025-10-05
     # Python 3.10 EOL: 2026-10-04
     # Python 3.11+ has tomllib
-    print(f"\n  Python 3.9:  EOL 2025-10-05 (PAST) - no tomllib")
-    print(f"  Python 3.10: EOL 2026-10-04 (soon) - no tomllib")
-    print(f"  Python 3.11: Active - HAS tomllib")
-    print(f"  Python 3.12: Active - HAS tomllib")
-    print(f"  Python 3.13: Active - HAS tomllib")
-    print(f"  Python 3.14: Active - HAS tomllib")
-    print(f"\n  RECOMMENDATION: Require Python >= 3.11 for install_venv.py")
-    print(f"  This is the BUILD-TIME Python (from rules_python toolchain),")
-    print(f"  not the application's runtime Python. Can be different.")
+    print("\n  Python 3.9:  EOL 2025-10-05 (PAST) - no tomllib")
+    print("  Python 3.10: EOL 2026-10-04 (soon) - no tomllib")
+    print("  Python 3.11: Active - HAS tomllib")
+    print("  Python 3.12: Active - HAS tomllib")
+    print("  Python 3.13: Active - HAS tomllib")
+    print("  Python 3.14: Active - HAS tomllib")
+    print("\n  RECOMMENDATION: Require Python >= 3.11 for install_venv.py")
+    print("  This is the BUILD-TIME Python (from rules_python toolchain),")
+    print("  not the application's runtime Python. Can be different.")
 
 
 if __name__ == "__main__":

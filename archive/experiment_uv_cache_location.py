@@ -7,6 +7,7 @@ and checks whether hardlinks actually share inodes.
 
 Run from the mounted source directory (not /tmp).
 """
+
 import os
 import shutil
 import subprocess
@@ -48,7 +49,11 @@ def check_hardlinks(venv_path):
                     hardlinked += 1
             except OSError:
                 pass
-    return {"total": total, "hardlinked": hardlinked, "ratio": hardlinked / max(total, 1)}
+    return {
+        "total": total,
+        "hardlinked": hardlinked,
+        "ratio": hardlinked / max(total, 1),
+    }
 
 
 def install_and_check(label, venv_path, cache_dir):
@@ -56,13 +61,15 @@ def install_and_check(label, venv_path, cache_dir):
     print(f"\n--- {label} ---")
     print(f"  venv:  {venv_path}")
     print(f"  cache: {cache_dir}")
-    print(f"  same device? ", end="")
+    print("  same device? ", end="")
 
     venv_dev = os.stat(os.path.dirname(venv_path)).st_dev
     os.makedirs(cache_dir, exist_ok=True)
     cache_dev = os.stat(cache_dir).st_dev
     same = venv_dev == cache_dev
-    print(f"{'YES' if same else 'NO'} (venv={os.major(venv_dev)}:{os.minor(venv_dev)}, cache={os.major(cache_dev)}:{os.minor(cache_dev)})")
+    print(
+        f"{'YES' if same else 'NO'} (venv={os.major(venv_dev)}:{os.minor(venv_dev)}, cache={os.major(cache_dev)}:{os.minor(cache_dev)})"
+    )
 
     # Clean
     shutil.rmtree(venv_path, ignore_errors=True)
@@ -70,8 +77,9 @@ def install_and_check(label, venv_path, cache_dir):
     os.makedirs(cache_dir, exist_ok=True)
 
     # Create venv
-    subprocess.run([UV, "venv", venv_path, "--python", PYTHON],
-                   capture_output=True, check=True)
+    subprocess.run(
+        [UV, "venv", venv_path, "--python", PYTHON], capture_output=True, check=True
+    )
 
     # Install with hardlink mode
     env = os.environ.copy()
@@ -80,24 +88,37 @@ def install_and_check(label, venv_path, cache_dir):
 
     start = time.monotonic()
     subprocess.run(
-        [UV, "pip", "install",
-         "--python", os.path.join(venv_path, "bin", "python3"),
-         "--no-deps", "--no-index",
-         "--find-links", WHEEL_DIR,
-         "--link-mode=hardlink"] + [os.path.join(WHEEL_DIR, w) for w in wheels],
-        capture_output=True, check=True, env=env)
+        [
+            UV,
+            "pip",
+            "install",
+            "--python",
+            os.path.join(venv_path, "bin", "python3"),
+            "--no-deps",
+            "--no-index",
+            "--find-links",
+            WHEEL_DIR,
+            "--link-mode=hardlink",
+        ]
+        + [os.path.join(WHEEL_DIR, w) for w in wheels],
+        capture_output=True,
+        check=True,
+        env=env,
+    )
     elapsed = time.monotonic() - start
 
     result = check_hardlinks(venv_path)
     print(f"  install: {elapsed:.2f}s")
-    print(f"  files: {result['total']}, hardlinked: {result['hardlinked']} ({result['ratio']:.0%})")
+    print(
+        f"  files: {result['total']}, hardlinked: {result['hardlinked']} ({result['ratio']:.0%})"
+    )
 
     if result["ratio"] > 0.5:
-        print(f"  HARDLINKS WORKING")
+        print("  HARDLINKS WORKING")
     elif result["ratio"] > 0:
-        print(f"  PARTIAL — some hardlinks work")
+        print("  PARTIAL — some hardlinks work")
     else:
-        print(f"  NO HARDLINKS — full copy, no dedup")
+        print("  NO HARDLINKS — full copy, no dedup")
 
     return result
 
@@ -113,31 +134,44 @@ def main():
 
     # Download numpy (small, fast)
     print("\nDownloading numpy wheel...")
-    subprocess.run([UV, "pip", "download",
-                    "--python-version", "3.11",
-                    "--python-platform", "manylinux_2_17_x86_64",
-                    "--dest", WHEEL_DIR, "numpy"],
-                   capture_output=True, check=True)
+    subprocess.run(
+        [
+            UV,
+            "pip",
+            "download",
+            "--python-version",
+            "3.11",
+            "--python-platform",
+            "manylinux_2_17_x86_64",
+            "--dest",
+            WHEEL_DIR,
+            "numpy",
+        ],
+        capture_output=True,
+        check=True,
+    )
 
     # Test 1: cache and venv on SAME filesystem (both in cwd)
     r1 = install_and_check(
-        "Same filesystem (cache in cwd)",
-        VENV_SAME_FS, CACHE_SAME_FS)
+        "Same filesystem (cache in cwd)", VENV_SAME_FS, CACHE_SAME_FS
+    )
 
     # Test 2: cache in /tmp, venv in cwd (likely DIFFERENT filesystem)
     r2 = install_and_check(
         "Cache in /tmp, venv in cwd",
-        os.path.join(WORK, "venv_cache_in_tmp"), CACHE_DIFF_FS)
+        os.path.join(WORK, "venv_cache_in_tmp"),
+        CACHE_DIFF_FS,
+    )
 
     # Test 3: both in /tmp
-    r3 = install_and_check(
-        "Both in /tmp",
-        "/tmp/_hl_exp_venv", "/tmp/_hl_exp_cache")
+    r3 = install_and_check("Both in /tmp", "/tmp/_hl_exp_venv", "/tmp/_hl_exp_cache")
 
     # Test 4: cache in cwd, venv in /tmp
     r4 = install_and_check(
         "Cache in cwd, venv in /tmp",
-        "/tmp/_hl_exp_venv2", os.path.join(WORK, "uv_cache2"))
+        "/tmp/_hl_exp_venv2",
+        os.path.join(WORK, "uv_cache2"),
+    )
 
     # Summary
     print("\n" + "=" * 60)
@@ -156,7 +190,12 @@ def main():
     # Cleanup
     print(f"\nCleanup: rm -rf {WORK} /tmp/_hl_exp_*")
     shutil.rmtree(WORK, ignore_errors=True)
-    for p in [CACHE_DIFF_FS, "/tmp/_hl_exp_venv", "/tmp/_hl_exp_cache", "/tmp/_hl_exp_venv2"]:
+    for p in [
+        CACHE_DIFF_FS,
+        "/tmp/_hl_exp_venv",
+        "/tmp/_hl_exp_cache",
+        "/tmp/_hl_exp_venv2",
+    ]:
         shutil.rmtree(p, ignore_errors=True)
 
 

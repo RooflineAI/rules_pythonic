@@ -7,6 +7,7 @@ with the toolchain Python (NOT the venv's bin/python3)?
 
 This matters for the design doc's resolved question #4.
 """
+
 import os
 import subprocess
 import sys
@@ -43,15 +44,19 @@ where = ["src"]
 
         # Create a venv and do editable install
         venv_dir = os.path.join(tmpdir, "venv")
-        subprocess.check_call(["uv", "venv", venv_dir, "--python", sys.executable],
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.check_call(
+            ["uv", "venv", venv_dir, "--python", sys.executable],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
         venv_python = os.path.join(venv_dir, "bin", "python3")
 
         # Editable install
         result = subprocess.run(
             ["uv", "pip", "install", "-e", pkg_dir, "--python", venv_python],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         print(f"  uv pip install -e: exit={result.returncode}")
         if result.returncode != 0:
@@ -109,7 +114,9 @@ print(f"  sys.path entries: {len(sys.path)}")
         env["PYTHONPATH"] = site_packages
         result = subprocess.run(
             [sys.executable, "-B", "-s", "-c", test_script],
-            capture_output=True, text=True, env=env,
+            capture_output=True,
+            text=True,
+            env=env,
         )
         print(f"\n  --- Test A: PYTHONPATH={site_packages} ---")
         print(result.stdout)
@@ -143,7 +150,9 @@ if not pth_processed:
 """
         result = subprocess.run(
             [sys.executable, "-B", "-c", pth_test, site_packages],
-            capture_output=True, text=True, env=env,
+            capture_output=True,
+            text=True,
+            env=env,
         )
         print(result.stdout)
 
@@ -153,7 +162,9 @@ if not pth_processed:
         env["PYTHONPATH"] = f"{os.path.join(pkg_dir, 'src')}:{site_packages}"
         result = subprocess.run(
             [sys.executable, "-B", "-s", "-c", test_script],
-            capture_output=True, text=True, env=env,
+            capture_output=True,
+            text=True,
+            env=env,
         )
         print(result.stdout)
 
@@ -185,18 +196,24 @@ where = ["src"]
 """)
 
         venv_dir = os.path.join(tmpdir, "venv")
-        subprocess.check_call(["uv", "venv", venv_dir, "--python", sys.executable],
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.check_call(
+            ["uv", "venv", venv_dir, "--python", sys.executable],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
         venv_python = os.path.join(venv_dir, "bin", "python3")
 
         start = time.perf_counter()
         subprocess.check_call(
             ["uv", "pip", "install", "-e", pkg_dir, "--python", venv_python],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
         elapsed = time.perf_counter() - start
         print(f"  Editable install time: {elapsed:.3f}s")
-        print(f"  {'PASS' if elapsed < 5.0 else 'WARN'}: {'Acceptable' if elapsed < 5.0 else 'Slow'} (<5s threshold)")
+        print(
+            f"  {'PASS' if elapsed < 5.0 else 'WARN'}: {'Acceptable' if elapsed < 5.0 else 'Slow'} (<5s threshold)"
+        )
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ Tests:
 3. What's the performance cost of many PYTHONPATH entries?
 4. Do namespace packages still work across many entries?
 """
+
 import os
 import sys
 import tempfile
@@ -51,7 +52,9 @@ def test_basic_scaling():
             successes = 0
             for i in range(20):
                 mod = importlib.import_module(f"pkg_{i:02d}")
-                assert f"pkg_{i:02d}" in mod.NAME, f"Wrong module loaded for pkg_{i:02d}"
+                assert f"pkg_{i:02d}" in mod.NAME, (
+                    f"Wrong module loaded for pkg_{i:02d}"
+                )
                 successes += 1
                 # Clean up for next test
                 del sys.modules[f"pkg_{i:02d}"]
@@ -114,12 +117,19 @@ def test_namespace_across_many_entries():
                 mod = importlib.import_module(f"myns.sub_{i}")
                 assert f"myns.sub_{i}" in mod.NAME
                 successes += 1
-            print(f"  PASS: All {successes}/5 namespace subpackages imported from separate roots")
+            print(
+                f"  PASS: All {successes}/5 namespace subpackages imported from separate roots"
+            )
 
             # Verify myns.__path__ contains all roots
             import myns
-            assert len(myns.__path__) >= 5, f"Expected >=5 paths, got {len(myns.__path__)}"
-            print(f"  PASS: myns.__path__ has {len(myns.__path__)} entries (all roots aggregated)")
+
+            assert len(myns.__path__) >= 5, (
+                f"Expected >=5 paths, got {len(myns.__path__)}"
+            )
+            print(
+                f"  PASS: myns.__path__ has {len(myns.__path__)} entries (all roots aggregated)"
+            )
 
             # Clean up
             for i in range(5):
@@ -143,7 +153,7 @@ def test_import_performance():
                 # Only put the target package in the LAST root
                 # to maximize search time
                 if i == n_entries - 1:
-                    create_package(root, "target_pkg", 'X = 1\n')
+                    create_package(root, "target_pkg", "X = 1\n")
                 roots.append(root)
 
             original_path = sys.path[:]
@@ -171,7 +181,9 @@ def test_import_performance():
                 avg_us = sum(times) / len(times) / 1000
                 p99_us = sorted(times)[98] / 1000
                 results[n_entries] = (avg_us, p99_us)
-                print(f"  {n_entries:3d} entries: avg={avg_us:8.1f}us  p99={p99_us:8.1f}us")
+                print(
+                    f"  {n_entries:3d} entries: avg={avg_us:8.1f}us  p99={p99_us:8.1f}us"
+                )
 
                 del sys.modules["target_pkg"]
             finally:
@@ -184,7 +196,9 @@ def test_import_performance():
         if ratio < 10:
             print("  PASS: Performance degradation acceptable (<10x)")
         else:
-            print(f"  WARN: Performance degradation is {ratio:.1f}x (may need investigation)")
+            print(
+                f"  WARN: Performance degradation is {ratio:.1f}x (may need investigation)"
+            )
 
 
 if __name__ == "__main__":

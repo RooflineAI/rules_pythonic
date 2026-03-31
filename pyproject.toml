@@ -9,3 +9,20 @@ dev = ["pytest>=8.0"]
 
 [tool.pytest.ini_options]
 pythonpath = ["pythonic/private"]
+
+[tool.ruff]
+target-version = "py311"
+exclude = ["archive", "_derisk"]
+
+[tool.ruff.lint]
+# E: pycodestyle errors, F: pyflakes, I: isort, UP: pyupgrade,
+# B: flake8-bugbear, SIM: flake8-simplify
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ty.src]
+# e2e/ directories are standalone Bazel modules with their own dependency
+# closures — ty cannot resolve their imports from the repo root.
+exclude = ["archive", "_derisk", "e2e"]
+
+[tool.ty.environment]
+python-version = "3.11"

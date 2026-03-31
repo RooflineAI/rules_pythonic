@@ -7,6 +7,7 @@ provided wheels via `uv pip install --target`.
 
 Requires Python >= 3.11 (for tomllib).
 """
+
 import argparse
 import os
 import pathlib
@@ -133,7 +134,9 @@ def validate_deps(
     return missing
 
 
-def verify_hardlinks(target_dir: pathlib.Path, cache_dir: str, sample_size: int = _HARDLINK_SAMPLE_SIZE) -> None:
+def verify_hardlinks(
+    target_dir: pathlib.Path, cache_dir: str, sample_size: int = _HARDLINK_SAMPLE_SIZE
+) -> None:
     """Fail if uv fell back to copies instead of hardlinks.
 
     uv silently copies when cache and output are on different filesystems,
@@ -201,8 +204,10 @@ def resolve_wheels(
         found = list(pathlib.Path(d).glob("*.whl"))
         if not found:
             print(
-                f"ERROR: first-party wheel directory contains no .whl files: {d}\n"
-                f"       The upstream .wheel target may have failed to produce output.\n"
+                f"ERROR: first-party wheel directory contains no .whl files:"
+                f" {d}\n"
+                f"       The upstream .wheel target may have failed to"
+                f" produce output.\n"
                 f"       Try: bazel build <package>.wheel",
                 file=sys.stderr,
             )
@@ -244,38 +249,74 @@ def install_packages(
     cache_dir = _require_uv_cache_dir()
 
     wheels_to_install = resolve_wheels(
-        wheel_files, pyproject_paths, first_party_packages,
-        first_party_wheel_dirs, extras,
+        wheel_files,
+        pyproject_paths,
+        first_party_packages,
+        first_party_wheel_dirs,
+        extras,
     )
 
     target_dir.mkdir(parents=True, exist_ok=True)
     if wheels_to_install:
-        subprocess.check_call([
-            uv_bin, "pip", "install",
-            "--cache-dir", cache_dir,
-            "--target", str(target_dir),
-            "--python", python_bin,
-            # --no-deps: pip.parse already resolved the full transitive closure
-            # --no-index: never contact PyPI; only use pre-downloaded wheels
-            # --link-mode=hardlink: near-zero disk overhead when on same filesystem
-            "--no-deps", "--no-index", "--link-mode=hardlink", "-q",
-        ] + wheels_to_install)
+        subprocess.check_call(
+            [
+                uv_bin,
+                "pip",
+                "install",
+                "--cache-dir",
+                cache_dir,
+                "--target",
+                str(target_dir),
+                "--python",
+                python_bin,
+                # --no-deps: pip.parse already resolved the full transitive closure
+                # --no-index: never contact PyPI; only use pre-downloaded wheels
+                # --link-mode=hardlink: near-zero disk overhead when on same filesystem
+                "--no-deps",
+                "--no-index",
+                "--link-mode=hardlink",
+                "-q",
+            ]
+            + wheels_to_install
+        )
 
         verify_hardlinks(target_dir, cache_dir)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Install third-party wheels into a flat directory for rules_pythonic.",
+        description=(
+            "Install third-party wheels into a flat directory for rules_pythonic."
+        ),
     )
     parser.add_argument("--uv-bin", required=True, help="Path to uv binary")
-    parser.add_argument("--python-bin", required=True, help="Path to Python interpreter")
-    parser.add_argument("--output-dir", required=True, help="Target directory for installed packages")
-    parser.add_argument("--wheel-files", nargs="*", default=[], help="Paths to .whl files")
-    parser.add_argument("--pyprojects", nargs="*", default=[], help="Paths to pyproject.toml files")
-    parser.add_argument("--first-party-packages", nargs="*", default=[], help="Package names to skip (on PYTHONPATH)")
-    parser.add_argument("--first-party-wheel-dirs", action="append", default=[], help="Directory containing a first-party .whl file to install")
-    parser.add_argument("--extras", nargs="*", default=[], help="Optional dependency groups to include")
+    parser.add_argument(
+        "--python-bin", required=True, help="Path to Python interpreter"
+    )
+    parser.add_argument(
+        "--output-dir", required=True, help="Target directory for installed packages"
+    )
+    parser.add_argument(
+        "--wheel-files", nargs="*", default=[], help="Paths to .whl files"
+    )
+    parser.add_argument(
+        "--pyprojects", nargs="*", default=[], help="Paths to pyproject.toml files"
+    )
+    parser.add_argument(
+        "--first-party-packages",
+        nargs="*",
+        default=[],
+        help="Package names to skip (on PYTHONPATH)",
+    )
+    parser.add_argument(
+        "--first-party-wheel-dirs",
+        action="append",
+        default=[],
+        help="Directory containing a first-party .whl file to install",
+    )
+    parser.add_argument(
+        "--extras", nargs="*", default=[], help="Optional dependency groups to include"
+    )
     args = parser.parse_args()
 
     install_packages(

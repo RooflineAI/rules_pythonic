@@ -8,6 +8,7 @@ design works or needs to be split.
 
 Produces structured JSON output.
 """
+
 import json
 import os
 import platform
@@ -109,7 +110,9 @@ def main():
 
     # --- META ---
     uv_version_out, _, _, _ = run(["uv", "--version"])
-    python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    python_version = (
+        f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    )
     uname = platform.uname()
 
     RESULTS["meta"] = {
@@ -171,9 +174,14 @@ def main():
     cuda_index = "https://download.pytorch.org/whl/cu124"
 
     download_cmd = [
-        PYTHON311, "-m", "pip", "download",
-        "--extra-index-url", cuda_index,
-        "-d", str(WHEEL_CACHE),
+        PYTHON311,
+        "-m",
+        "pip",
+        "download",
+        "--extra-index-url",
+        cuda_index,
+        "-d",
+        str(WHEEL_CACHE),
     ] + packages
 
     print(f"Downloading: {', '.join(packages)}")
@@ -194,10 +202,16 @@ def main():
         # measuring file counts but won't have nvidia-* CUDA packages)
         packages_fallback = ["torch", "numpy", "scipy", "pytest"]
         download_cmd_fb = [
-            PYTHON311, "-m", "pip", "download",
-            "-d", str(WHEEL_CACHE),
+            PYTHON311,
+            "-m",
+            "pip",
+            "download",
+            "-d",
+            str(WHEEL_CACHE),
         ] + packages_fallback
-        print(f"\nRetrying without CUDA index (CPU-only fallback): {', '.join(packages_fallback)}")
+        print(
+            f"\nRetrying without CUDA index (CPU-only fallback): {', '.join(packages_fallback)}"
+        )
         print("WARNING: CPU-only torch is much smaller than CUDA torch.")
         print("         Results will underestimate real CUDA workload.")
         stdout, stderr, rc, elapsed = run(download_cmd_fb)
@@ -231,18 +245,28 @@ def main():
     print("-" * 70)
 
     # 2a: venv creation
-    _, _, _, venv_create_time = run([
-        "uv", "venv", str(VENV_A), "--python", PYTHON311,
-    ])
-    print(f"uv venv creation: {venv_create_time*1000:.0f}ms")
+    _, _, _, venv_create_time = run(
+        [
+            "uv",
+            "venv",
+            str(VENV_A),
+            "--python",
+            PYTHON311,
+        ]
+    )
+    print(f"uv venv creation: {venv_create_time * 1000:.0f}ms")
 
     # 2b: install with hardlink
     install_cmd = [
-        "uv", "pip", "install",
-        "--python", str(VENV_A / "bin" / "python3"),
+        "uv",
+        "pip",
+        "install",
+        "--python",
+        str(VENV_A / "bin" / "python3"),
         "--no-deps",
         "--no-index",
-        "--find-links", str(WHEEL_CACHE),
+        "--find-links",
+        str(WHEEL_CACHE),
         "--link-mode=hardlink",
     ] + [str(w) for w in wheel_files]
 
@@ -261,11 +285,15 @@ def main():
         shutil.rmtree(VENV_A)
         run(["uv", "venv", str(VENV_A), "--python", PYTHON311])
         install_cmd_copy = [
-            "uv", "pip", "install",
-            "--python", str(VENV_A / "bin" / "python3"),
+            "uv",
+            "pip",
+            "install",
+            "--python",
+            str(VENV_A / "bin" / "python3"),
             "--no-deps",
             "--no-index",
-            "--find-links", str(WHEEL_CACHE),
+            "--find-links",
+            str(WHEEL_CACHE),
             "--link-mode=copy",
         ] + [str(w) for w in wheel_files]
         _, _, rc_copy, install_copy_time = run(install_cmd_copy)
@@ -279,11 +307,15 @@ def main():
         VENV_B.mkdir(parents=True, exist_ok=True)
         run(["uv", "venv", str(VENV_B), "--python", PYTHON311])
         install_cmd_copy = [
-            "uv", "pip", "install",
-            "--python", str(VENV_B / "bin" / "python3"),
+            "uv",
+            "pip",
+            "install",
+            "--python",
+            str(VENV_B / "bin" / "python3"),
             "--no-deps",
             "--no-index",
-            "--find-links", str(WHEEL_CACHE),
+            "--find-links",
+            str(WHEEL_CACHE),
             "--link-mode=copy",
         ] + [str(w) for w in wheel_files]
         _, _, _, install_copy_time = run(install_cmd_copy)
@@ -319,7 +351,9 @@ def main():
                 ext = Path(f).suffix or "(no ext)"
                 ext_counts[ext] = ext_counts.get(ext, 0) + 1
                 try:
-                    ext_bytes[ext] = ext_bytes.get(ext, 0) + os.path.getsize(os.path.join(root, f))
+                    ext_bytes[ext] = ext_bytes.get(ext, 0) + os.path.getsize(
+                        os.path.join(root, f)
+                    )
                 except OSError:
                     pass
 
@@ -359,17 +393,27 @@ def main():
             "unique_inodes": len(unique_inodes),
             "hardlink_ratio": round(1 - len(unique_inodes) / max(inode_count, 1), 3),
             "sample_hardlinked_files": sample_inodes,
-            "top_extensions_by_count": dict(sorted(ext_counts.items(), key=lambda x: -x[1])[:10]),
-            "top_extensions_by_bytes": {k: v for k, v in sorted(ext_bytes.items(), key=lambda x: -x[1])[:10]},
+            "top_extensions_by_count": dict(
+                sorted(ext_counts.items(), key=lambda x: -x[1])[:10]
+            ),
+            "top_extensions_by_bytes": {
+                k: v for k, v in sorted(ext_bytes.items(), key=lambda x: -x[1])[:10]
+            },
             "top_packages_by_bytes": {k: v for k, v in top_packages},
         }
 
         print(f"Files:        {file_count:,}")
         print(f"Directories:  {dir_count:,}")
         print(f"Apparent:     {apparent_bytes / 1e9:.2f} GB")
-        print(f"On-disk:      {disk_bytes / 1e9:.2f} GB" if disk_bytes > 0 else "On-disk: unknown")
-        print(f"Hardlink ratio (sampled): {RESULTS['file_stats']['hardlink_ratio']:.1%}")
-        print(f"\nTop packages by size:")
+        print(
+            f"On-disk:      {disk_bytes / 1e9:.2f} GB"
+            if disk_bytes > 0
+            else "On-disk: unknown"
+        )
+        print(
+            f"Hardlink ratio (sampled): {RESULTS['file_stats']['hardlink_ratio']:.1%}"
+        )
+        print("\nTop packages by size:")
         for name, size in top_packages[:10]:
             print(f"  {name:40s} {size / 1e6:8.1f} MB")
 
@@ -398,7 +442,7 @@ def main():
     if VENV_SYMLINK.exists():
         VENV_SYMLINK.unlink()
     _, symlink_time = timeit(lambda: os.symlink(str(VENV_A), str(VENV_SYMLINK)))
-    print(f"symlink:      {symlink_time*1000:.2f}ms")
+    print(f"symlink:      {symlink_time * 1000:.2f}ms")
 
     RESULTS["copy_performance"] = {
         "cp_r_seconds": round(cp_time, 2),
@@ -415,24 +459,30 @@ def main():
     print("-" * 70)
 
     # Uncompressed tar
-    _, _, _, tar_create_time = run(["tar", "cf", str(TAR_FILE), "-C", str(WORK_DIR), "venv_a"])
+    _, _, _, tar_create_time = run(
+        ["tar", "cf", str(TAR_FILE), "-C", str(WORK_DIR), "venv_a"]
+    )
     tar_size = TAR_FILE.stat().st_size if TAR_FILE.exists() else 0
     print(f"tar create:   {tar_create_time:.2f}s ({tar_size / 1e9:.2f} GB)")
 
     # Compressed tar (zstd — what Bazel remote cache often uses)
     tar_zst = WORK_DIR / "venv.tar.zst"
-    _, _, rc_zst, zst_create_time = run(["tar", "--zstd", "-cf", str(tar_zst), "-C", str(WORK_DIR), "venv_a"])
+    _, _, rc_zst, zst_create_time = run(
+        ["tar", "--zstd", "-cf", str(tar_zst), "-C", str(WORK_DIR), "venv_a"]
+    )
     zst_size = tar_zst.stat().st_size if tar_zst.exists() and rc_zst == 0 else -1
     if rc_zst == 0:
         print(f"tar+zstd:     {zst_create_time:.2f}s ({zst_size / 1e9:.2f} GB)")
     else:
-        print(f"tar+zstd:     not available (zstd not installed)")
+        print("tar+zstd:     not available (zstd not installed)")
 
     # Extract tar
     if TAR_EXTRACT.exists():
         shutil.rmtree(TAR_EXTRACT)
     TAR_EXTRACT.mkdir()
-    _, _, _, tar_extract_time = run(["tar", "xf", str(TAR_FILE), "-C", str(TAR_EXTRACT)])
+    _, _, _, tar_extract_time = run(
+        ["tar", "xf", str(TAR_FILE), "-C", str(TAR_EXTRACT)]
+    )
     print(f"tar extract:  {tar_extract_time:.2f}s")
 
     # Extract zstd tar
@@ -441,7 +491,9 @@ def main():
         if tar_zst_extract.exists():
             shutil.rmtree(tar_zst_extract)
         tar_zst_extract.mkdir()
-        _, _, _, zst_extract_time = run(["tar", "--zstd", "-xf", str(tar_zst), "-C", str(tar_zst_extract)])
+        _, _, _, zst_extract_time = run(
+            ["tar", "--zstd", "-xf", str(tar_zst), "-C", str(tar_zst_extract)]
+        )
         print(f"zstd extract: {zst_extract_time:.2f}s")
     else:
         zst_extract_time = -1
@@ -467,7 +519,7 @@ def main():
 
     if site_packages:
         import_test_script = WORK_DIR / "import_test.py"
-        import_test_script.write_text('''\
+        import_test_script.write_text("""\
 import json, sys, time, os
 
 site_packages = sys.argv[1]
@@ -549,21 +601,31 @@ except:
     pass
 
 print(json.dumps(results, indent=2))
-''')
+""")
 
-        stdout, stderr, rc, _ = run([
-            PYTHON311, str(import_test_script), str(site_packages),
-        ])
+        stdout, stderr, rc, _ = run(
+            [
+                PYTHON311,
+                str(import_test_script),
+                str(site_packages),
+            ]
+        )
 
         if rc == 0:
             try:
                 import_results = json.loads(stdout)
                 RESULTS["import_performance"] = import_results
-                print(f"torch import: {import_results.get('torch_import_seconds', '?')}s")
-                print(f"numpy import: {import_results.get('numpy_import_seconds', '?')}s")
+                print(
+                    f"torch import: {import_results.get('torch_import_seconds', '?')}s"
+                )
+                print(
+                    f"numpy import: {import_results.get('numpy_import_seconds', '?')}s"
+                )
                 print(f"metadata:     {import_results.get('metadata_seconds', '?')}s")
                 print(f"torch version:{import_results.get('torch_version', '?')}")
-                print(f"CUDA avail:   {import_results.get('torch_cuda_available', '?')}")
+                print(
+                    f"CUDA avail:   {import_results.get('torch_cuda_available', '?')}"
+                )
             except json.JSONDecodeError:
                 print(f"Import test output (not JSON): {stdout[:500]}")
                 RESULTS["import_performance"]["raw_output"] = stdout[:1000]
@@ -583,14 +645,20 @@ print(json.dumps(results, indent=2))
 
     # Delete the venv and recreate (simulates Bazel invalidating the TreeArtifact)
     rebuild_venv = WORK_DIR / "venv_rebuild"
-    _, _, _, rebuild_create = run(["uv", "venv", str(rebuild_venv), "--python", PYTHON311])
+    _, _, _, rebuild_create = run(
+        ["uv", "venv", str(rebuild_venv), "--python", PYTHON311]
+    )
 
     rebuild_install_cmd = [
-        "uv", "pip", "install",
-        "--python", str(rebuild_venv / "bin" / "python3"),
+        "uv",
+        "pip",
+        "install",
+        "--python",
+        str(rebuild_venv / "bin" / "python3"),
         "--no-deps",
         "--no-index",
-        "--find-links", str(WHEEL_CACHE),
+        "--find-links",
+        str(WHEEL_CACHE),
         "--link-mode=hardlink",
     ] + [str(w) for w in wheel_files]
 
@@ -604,7 +672,7 @@ print(json.dumps(results, indent=2))
     }
 
     print(f"Rebuild (warm cache): {rebuild_create + rebuild_install:.2f}s")
-    print(f"  venv create: {rebuild_create*1000:.0f}ms")
+    print(f"  venv create: {rebuild_create * 1000:.0f}ms")
     print(f"  install:     {rebuild_install:.2f}s")
     print()
 
@@ -615,30 +683,52 @@ print(json.dumps(results, indent=2))
     print("BENCHMARK 8: Split-venv simulation (torch alone vs everything else)")
     print("-" * 70)
 
-    torch_wheels = [w for w in wheel_files if "torch" in w.name.lower() and "triton" not in w.name.lower()]
+    torch_wheels = [
+        w
+        for w in wheel_files
+        if "torch" in w.name.lower() and "triton" not in w.name.lower()
+    ]
     rest_wheels = [w for w in wheel_files if w not in torch_wheels]
 
     # Venv 1: torch only
     run(["uv", "venv", str(SPLIT_TORCH), "--python", PYTHON311])
     if torch_wheels:
-        _, _, _, split_torch_time = run([
-            "uv", "pip", "install",
-            "--python", str(SPLIT_TORCH / "bin" / "python3"),
-            "--no-deps", "--no-index", "--find-links", str(WHEEL_CACHE),
-            "--link-mode=hardlink",
-        ] + [str(w) for w in torch_wheels])
+        _, _, _, split_torch_time = run(
+            [
+                "uv",
+                "pip",
+                "install",
+                "--python",
+                str(SPLIT_TORCH / "bin" / "python3"),
+                "--no-deps",
+                "--no-index",
+                "--find-links",
+                str(WHEEL_CACHE),
+                "--link-mode=hardlink",
+            ]
+            + [str(w) for w in torch_wheels]
+        )
     else:
         split_torch_time = 0
 
     # Venv 2: everything else
     run(["uv", "venv", str(SPLIT_REST), "--python", PYTHON311])
     if rest_wheels:
-        _, _, _, split_rest_time = run([
-            "uv", "pip", "install",
-            "--python", str(SPLIT_REST / "bin" / "python3"),
-            "--no-deps", "--no-index", "--find-links", str(WHEEL_CACHE),
-            "--link-mode=hardlink",
-        ] + [str(w) for w in rest_wheels])
+        _, _, _, split_rest_time = run(
+            [
+                "uv",
+                "pip",
+                "install",
+                "--python",
+                str(SPLIT_REST / "bin" / "python3"),
+                "--no-deps",
+                "--no-index",
+                "--find-links",
+                str(WHEEL_CACHE),
+                "--link-mode=hardlink",
+            ]
+            + [str(w) for w in rest_wheels]
+        )
     else:
         split_rest_time = 0
 
@@ -664,9 +754,15 @@ print(json.dumps(results, indent=2))
         },
     }
 
-    print(f"Torch-only venv:  {torch_files:,} files, {torch_bytes/1e9:.2f} GB, {split_torch_time:.2f}s")
-    print(f"Rest venv:        {rest_files:,} files, {rest_bytes/1e9:.2f} GB, {split_rest_time:.2f}s")
-    print(f"Combined install: {split_torch_time + split_rest_time:.2f}s (vs single: {RESULTS['venv_creation'].get('install_hardlink_seconds', '?')}s)")
+    print(
+        f"Torch-only venv:  {torch_files:,} files, {torch_bytes / 1e9:.2f} GB, {split_torch_time:.2f}s"
+    )
+    print(
+        f"Rest venv:        {rest_files:,} files, {rest_bytes / 1e9:.2f} GB, {split_rest_time:.2f}s"
+    )
+    print(
+        f"Combined install: {split_torch_time + split_rest_time:.2f}s (vs single: {RESULTS['venv_creation'].get('install_hardlink_seconds', '?')}s)"
+    )
     print()
 
     # =========================================================================

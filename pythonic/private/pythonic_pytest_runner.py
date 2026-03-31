@@ -3,6 +3,7 @@
 Translates Bazel test protocol environment variables into pytest arguments.
 No external dependencies beyond pytest (which is in the installed packages).
 """
+
 import os
 import pathlib
 import sys
@@ -28,7 +29,7 @@ def main():
 
     shard_index = os.environ.get("TEST_SHARD_INDEX")
     total_shards = os.environ.get("TEST_TOTAL_SHARDS")
-    if shard_index is not None:
+    if shard_index is not None and total_shards is not None:
         i, n = int(shard_index), int(total_shards)
         test_files = [f for idx, f in enumerate(sorted(test_files)) if idx % n == i]
         if not test_files:
@@ -50,6 +51,7 @@ def main():
         args.extend(["--rootdir", repo_root])
 
     import pytest
+
     sys.exit(pytest.main(args))
 
 

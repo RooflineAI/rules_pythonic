@@ -12,6 +12,7 @@ Bazel config) and verifies hardlinks work + measures disk savings.
 
 Run this FROM the mounted source directory.
 """
+
 import os
 import shutil
 import subprocess
@@ -22,11 +23,11 @@ WORK = os.path.join(os.getcwd(), "_ci_sim")
 UV = "uv"
 PYTHON = sys.executable
 
-UV_CACHE = os.path.join(WORK, "uv_cache")       # simulates sandbox_writable_path on same fs
+UV_CACHE = os.path.join(WORK, "uv_cache")  # simulates sandbox_writable_path on same fs
 WHEEL_DIR = os.path.join(WORK, "wheels")
-VENV_1 = os.path.join(WORK, "venv_target_a")    # first test target's venv
-VENV_2 = os.path.join(WORK, "venv_target_b")    # second test target's venv (same deps)
-VENV_3 = os.path.join(WORK, "venv_target_c")    # third (same deps)
+VENV_1 = os.path.join(WORK, "venv_target_a")  # first test target's venv
+VENV_2 = os.path.join(WORK, "venv_target_b")  # second test target's venv (same deps)
+VENV_3 = os.path.join(WORK, "venv_target_c")  # third (same deps)
 
 
 def du(path):
@@ -59,19 +60,33 @@ def create_venv(label, venv_path):
     env = os.environ.copy()
     env["UV_CACHE_DIR"] = UV_CACHE
 
-    subprocess.run([UV, "venv", venv_path, "--python", PYTHON],
-                   capture_output=True, check=True)
+    subprocess.run(
+        [UV, "venv", venv_path, "--python", PYTHON], capture_output=True, check=True
+    )
 
-    wheels = [os.path.join(WHEEL_DIR, w) for w in os.listdir(WHEEL_DIR) if w.endswith(".whl")]
+    wheels = [
+        os.path.join(WHEEL_DIR, w) for w in os.listdir(WHEEL_DIR) if w.endswith(".whl")
+    ]
 
     start = time.monotonic()
     result = subprocess.run(
-        [UV, "pip", "install",
-         "--python", os.path.join(venv_path, "bin", "python3"),
-         "--no-deps", "--no-index",
-         "--find-links", WHEEL_DIR,
-         "--link-mode=hardlink"] + wheels,
-        capture_output=True, text=True, env=env)
+        [
+            UV,
+            "pip",
+            "install",
+            "--python",
+            os.path.join(venv_path, "bin", "python3"),
+            "--no-deps",
+            "--no-index",
+            "--find-links",
+            WHEEL_DIR,
+            "--link-mode=hardlink",
+        ]
+        + wheels,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
     elapsed = time.monotonic() - start
 
     if result.returncode != 0:
@@ -92,10 +107,14 @@ def main():
     # Try to detect if /tmp is different
     tmp_dev = os.stat("/tmp").st_dev
     if tmp_dev != cwd_dev:
-        print(f"/tmp device:        {os.major(tmp_dev)}:{os.minor(tmp_dev)} — DIFFERENT filesystem!")
+        print(
+            f"/tmp device:        {os.major(tmp_dev)}:{os.minor(tmp_dev)} — DIFFERENT filesystem!"
+        )
         print("This confirms hardlinks would fail with UV_CACHE_DIR=/tmp/...")
     else:
-        print(f"/tmp device:        {os.major(tmp_dev)}:{os.minor(tmp_dev)} — same filesystem")
+        print(
+            f"/tmp device:        {os.major(tmp_dev)}:{os.minor(tmp_dev)} — same filesystem"
+        )
     print()
 
     # Setup
@@ -105,27 +124,53 @@ def main():
     # Download torch CUDA (the real test) — or fall back to smaller set
     print("Downloading torch (CUDA) + numpy + pytest...")
     result = subprocess.run(
-        [UV, "pip", "download",
-         "--python-version", "3.11",
-         "--python-platform", "manylinux_2_17_x86_64",
-         "--extra-index-url", "https://download.pytorch.org/whl/cu124",
-         "--dest", WHEEL_DIR,
-         "torch", "numpy", "pytest"],
-        capture_output=True, text=True)
+        [
+            UV,
+            "pip",
+            "download",
+            "--python-version",
+            "3.11",
+            "--python-platform",
+            "manylinux_2_17_x86_64",
+            "--extra-index-url",
+            "https://download.pytorch.org/whl/cu124",
+            "--dest",
+            WHEEL_DIR,
+            "torch",
+            "numpy",
+            "pytest",
+        ],
+        capture_output=True,
+        text=True,
+    )
 
     if result.returncode != 0:
         print("CUDA download failed, trying CPU torch...")
         subprocess.run(
-            [UV, "pip", "download",
-             "--python-version", "3.11",
-             "--python-platform", "manylinux_2_17_x86_64",
-             "--dest", WHEEL_DIR,
-             "torch", "numpy", "pytest"],
-            capture_output=True, check=True)
+            [
+                UV,
+                "pip",
+                "download",
+                "--python-version",
+                "3.11",
+                "--python-platform",
+                "manylinux_2_17_x86_64",
+                "--dest",
+                WHEEL_DIR,
+                "torch",
+                "numpy",
+                "pytest",
+            ],
+            capture_output=True,
+            check=True,
+        )
 
     wheel_count = len([f for f in os.listdir(WHEEL_DIR) if f.endswith(".whl")])
-    wheel_bytes = sum(os.path.getsize(os.path.join(WHEEL_DIR, f))
-                      for f in os.listdir(WHEEL_DIR) if f.endswith(".whl"))
+    wheel_bytes = sum(
+        os.path.getsize(os.path.join(WHEEL_DIR, f))
+        for f in os.listdir(WHEEL_DIR)
+        if f.endswith(".whl")
+    )
     print(f"Wheels: {wheel_count} ({wheel_bytes / 1e9:.2f} GB)")
     print()
 
@@ -161,15 +206,19 @@ def main():
     print()
 
     naive_total = cache_du + 3 * v1_du  # what it would be without hardlinks
-    print(f"  Without hardlink dedup (3 full copies): ~{(3 * v1_du) / 1e9:.1f} GB for venvs alone")
+    print(
+        f"  Without hardlink dedup (3 full copies): ~{(3 * v1_du) / 1e9:.1f} GB for venvs alone"
+    )
     print(f"  Actual total:                           {total_du / 1e9:.1f} GB")
 
     if v2_du < v1_du * 0.1:
-        print(f"\n  HARDLINKS WORKING — venv 2+3 are nearly free ({v2_du / 1e6:.1f} MB each)")
+        print(
+            f"\n  HARDLINKS WORKING — venv 2+3 are nearly free ({v2_du / 1e6:.1f} MB each)"
+        )
     elif v2_du < v1_du * 0.5:
-        print(f"\n  PARTIAL DEDUP — venv 2+3 are smaller but not free")
+        print("\n  PARTIAL DEDUP — venv 2+3 are smaller but not free")
     else:
-        print(f"\n  NO DEDUP — each venv is a full copy")
+        print("\n  NO DEDUP — each venv is a full copy")
         print(f"  Wasted disk: {(2 * v1_du) / 1e9:.1f} GB")
 
     # Cleanup

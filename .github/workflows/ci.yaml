@@ -1,17 +1,14 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
-
 concurrency:
   # Cancel previous runs from the same PR; never cancel main.
   group: concurrency-group::${{ github.workflow }}::${{ github.event.pull_request.number > 0 && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}${{ github.ref_name == 'main' && format('::{0}', github.run_id) || ''}}
   cancel-in-progress: ${{ github.ref_name != 'main' }}
-
 jobs:
   unit-tests:
     name: Unit tests (${{ matrix.os }})
@@ -24,7 +21,6 @@ jobs:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
       - run: uv run pytest pythonic/private/tests/
-
   e2e-smoke:
     name: E2e smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -44,13 +40,11 @@ jobs:
       - name: Test
         working-directory: e2e/smoke
         run: bazel test //...
-
   pre-commit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: pre-commit/action@v3.0.1
-
   # Stable job name for branch protection rules.
   conclusion:
     needs: [unit-tests, e2e-smoke, pre-commit]

@@ -6,9 +6,6 @@ The design doc hardcodes [test] extras. This experiment tests:
 2. Overlapping deps across groups
 3. The proposed API: extras = ["gpu"] attribute
 """
-import os
-import sys
-import tempfile
 
 try:
     import tomllib
@@ -80,7 +77,7 @@ def test_single_extras_group():
 
     expected = {"torch", "numpy", "attic_rt", "pytest", "pytest_xdist"}
     assert deps == expected, f"Expected {expected}, got {deps}"
-    print(f"  PASS: Correct deps for [test] extras (torch not duplicated)")
+    print("  PASS: Correct deps for [test] extras (torch not duplicated)")
 
 
 def test_multiple_extras_groups():
@@ -90,10 +87,17 @@ def test_multiple_extras_groups():
     deps = collect_deps_with_extras(SAMPLE_PYPROJECT, ["test", "gpu"])
     print(f"  deps = {sorted(deps)}")
 
-    expected = {"torch", "numpy", "attic_rt", "pytest", "pytest_xdist",
-                "nvidia_cudnn_cu12", "nvidia_cublas_cu12"}
+    expected = {
+        "torch",
+        "numpy",
+        "attic_rt",
+        "pytest",
+        "pytest_xdist",
+        "nvidia_cudnn_cu12",
+        "nvidia_cublas_cu12",
+    }
     assert deps == expected, f"Expected {expected}, got {deps}"
-    print(f"  PASS: Correct deps for [test, gpu] (union, no duplicates)")
+    print("  PASS: Correct deps for [test, gpu] (union, no duplicates)")
 
 
 def test_no_extras():
@@ -105,7 +109,7 @@ def test_no_extras():
 
     expected = {"torch", "numpy", "attic_rt"}
     assert deps == expected, f"Expected {expected}, got {deps}"
-    print(f"  PASS: Only core deps when no extras requested")
+    print("  PASS: Only core deps when no extras requested")
 
 
 def test_overlapping_extras():
@@ -116,10 +120,9 @@ def test_overlapping_extras():
     print(f"  deps = {sorted(deps)}")
 
     # pytest appears in both [test] and [dev] - should appear once
-    expected = {"torch", "numpy", "attic_rt", "pytest", "pytest_xdist",
-                "ruff", "mypy"}
+    expected = {"torch", "numpy", "attic_rt", "pytest", "pytest_xdist", "ruff", "mypy"}
     assert deps == expected, f"Expected {expected}, got {deps}"
-    print(f"  PASS: Overlapping deps correctly deduplicated")
+    print("  PASS: Overlapping deps correctly deduplicated")
 
 
 def test_nonexistent_extras_group():
@@ -131,8 +134,8 @@ def test_nonexistent_extras_group():
 
     expected = {"torch", "numpy", "attic_rt"}
     assert deps == expected, f"Expected {expected}, got {deps}"
-    print(f"  PASS: Nonexistent group silently ignored (only core deps)")
-    print(f"  NOTE: Should we warn? Current behavior: silent (matches pip)")
+    print("  PASS: Nonexistent group silently ignored (only core deps)")
+    print("  NOTE: Should we warn? Current behavior: silent (matches pip)")
 
 
 def test_multiple_pyprojects_with_extras():
@@ -167,7 +170,7 @@ test = ["pytest>=7.0", "hypothesis"]
 
     expected = {"torch", "numpy", "scipy", "pytest", "hypothesis"}
     assert union_deps == expected, f"Expected {expected}, got {union_deps}"
-    print(f"  PASS: Union of multiple pyproject.toml deps correct")
+    print("  PASS: Union of multiple pyproject.toml deps correct")
 
 
 def test_proposed_api():

@@ -46,6 +46,20 @@ repos:
     rev: v0.14.0
     hooks:
       - id: yamlfmt
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.8
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty
+        entry: uv tool run ty check --error-on-warning --python-version 3.11
+        language: system
+        types: [python]
+        pass_filenames: false
   - repo: https://github.com/crate-ci/typos
     rev: v1.38.1
     hooks:

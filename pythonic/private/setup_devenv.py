@@ -5,6 +5,7 @@ Called by `bazel run //:devenv`. Reads a JSON manifest produced at build time,
 creates a venv via `uv venv`, installs third-party wheels, then editable-installs
 first-party packages using the same staging mechanism as build_wheel.py.
 """
+
 import argparse
 import json
 import os
@@ -32,12 +33,24 @@ def _stage_wheels_dir(wheel_paths: list[pathlib.Path]) -> pathlib.Path:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Set up a Python dev environment for IDE use.")
-    parser.add_argument("--manifest", required=True, help="Path to JSON manifest from build time")
+    parser = argparse.ArgumentParser(
+        description="Set up a Python dev environment for IDE use."
+    )
+    parser.add_argument(
+        "--manifest", required=True, help="Path to JSON manifest from build time"
+    )
     parser.add_argument("--uv-bin", required=True, help="Path to uv binary")
-    parser.add_argument("--python-bin", required=True, help="Path to Python interpreter")
-    parser.add_argument("--workspace-dir", required=True, help="Workspace root ($BUILD_WORKSPACE_DIRECTORY)")
-    parser.add_argument("--runfiles-dir", required=True, help="Runfiles root ($RUNFILES_DIR)")
+    parser.add_argument(
+        "--python-bin", required=True, help="Path to Python interpreter"
+    )
+    parser.add_argument(
+        "--workspace-dir",
+        required=True,
+        help="Workspace root ($BUILD_WORKSPACE_DIRECTORY)",
+    )
+    parser.add_argument(
+        "--runfiles-dir", required=True, help="Runfiles root ($RUNFILES_DIR)"
+    )
     args = parser.parse_args()
 
     manifest = json.loads(pathlib.Path(args.manifest).read_text())
@@ -49,7 +62,9 @@ def main() -> None:
 
     # Step 0: Create or update the venv.
     print(f"Creating venv at {venv_dir} ...")
-    subprocess.check_call([uv, "venv", "--python", python, "--allow-existing", str(venv_dir)])
+    subprocess.check_call(
+        [uv, "venv", "--python", python, "--allow-existing", str(venv_dir)]
+    )
 
     venv_python = str(venv_dir / "bin" / "python")
 
@@ -59,13 +74,20 @@ def main() -> None:
     ]
     if third_party_wheel_paths:
         print(f"Installing {len(third_party_wheel_paths)} third-party wheels ...")
-        subprocess.check_call([
-            uv, "pip", "install",
-            "--python", venv_python,
-            "--no-deps", "--no-index",
-            "--link-mode=hardlink",
-            "-q",
-        ] + [str(w) for w in third_party_wheel_paths])
+        subprocess.check_call(
+            [
+                uv,
+                "pip",
+                "install",
+                "--python",
+                venv_python,
+                "--no-deps",
+                "--no-index",
+                "--link-mode=hardlink",
+                "-q",
+            ]
+            + [str(w) for w in third_party_wheel_paths]
+        )
 
     # Step 2: Install first-party wheels. Each wheel dir is a Bazel
     # TreeArtifact containing exactly one .whl. We use --find-links with
@@ -74,15 +96,22 @@ def main() -> None:
     for fp_whl in first_party_wheels:
         whl_dir = runfiles / fp_whl["dir"]
         print(f"Installing first-party wheel {fp_whl['name']} ...")
-        subprocess.check_call([
-            uv, "pip", "install",
-            "--python", venv_python,
-            "--no-deps", "--no-index",
-            "--find-links", str(whl_dir),
-            "--link-mode=hardlink",
-            "-q",
-            fp_whl["name"],
-        ])
+        subprocess.check_call(
+            [
+                uv,
+                "pip",
+                "install",
+                "--python",
+                venv_python,
+                "--no-deps",
+                "--no-index",
+                "--find-links",
+                str(whl_dir),
+                "--link-mode=hardlink",
+                "-q",
+                fp_whl["name"],
+            ]
+        )
 
     # Step 3: Editable-install first-party source packages.
     # Each package is staged via stage_symlink_tree (same mechanism as wheel
