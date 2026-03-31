@@ -125,6 +125,7 @@ def _pythonic_wheel_impl(ctx):
         mnemonic = "PythonicWheel",
         progress_message = "Building wheel for %{label}",
         env = uv_action_env(ctx),
+        execution_requirements = {"no-remote-exec": ""},
     )
 
     # Build first_party_deps from deps, mirroring _pythonic_package_impl.
