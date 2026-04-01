@@ -13,3 +13,6 @@ packages = ["src/mypackage"]
 
 [project.optional-dependencies]
 test = ["pytest>=7.0"]
+
+[project.entry-points."mypackage.plugins"]
+greeter = "mypackage.greeting:hello"

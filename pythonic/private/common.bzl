@@ -88,11 +88,35 @@ def collect_dep_info(deps):
             src_roots.append(info.src_root)
             first_party_names.append(info.package_name)
 
+    # Collect source package info for dist-info generation.
+    # Source deps with a pyproject can be editable-installed to produce
+    # metadata (entry_points.txt, METADATA) without building a wheel.
+    source_packages = []
+    source_inputs = []
+    seen_source = {}
+    for info in all_infos:
+        if info.package_name in seen_source:
+            continue
+        if info.package_name in wheel_packages:
+            continue
+        if not info.pyproject:
+            continue
+        seen_source[info.package_name] = True
+        srcs = info.srcs.to_list()
+        source_packages.append(struct(
+            pyproject = info.pyproject,
+            srcs = srcs,
+        ))
+        source_inputs.append(info.pyproject)
+        source_inputs.extend(srcs)
+
     return struct(
         src_roots = src_roots,
         pyprojects = pyprojects,
         first_party_names = first_party_names,
         first_party_wheel_dirs = first_party_wheel_dirs,
+        source_packages = source_packages,
+        source_inputs = source_inputs,
         dep_runfiles = dep_runfiles,
     )
 

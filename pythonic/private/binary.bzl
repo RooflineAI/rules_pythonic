@@ -53,11 +53,17 @@ def _pythonic_binary_impl(ctx):
     if ctx.attr.install_all_wheels:
         args.add("--install-all")
 
+    for sp in dep_info.source_packages:
+        args.add("--source-package", json.encode({
+            "pyproject": sp.pyproject.path,
+            "srcs": [f.path for f in sp.srcs],
+        }))
+
     ctx.actions.run(
         executable = python,
         arguments = [args],
         inputs = depset(
-            direct = dep_info.pyprojects + wheels + dep_info.first_party_wheel_dirs + [ctx.file._install_packages],
+            direct = dep_info.pyprojects + wheels + dep_info.first_party_wheel_dirs + dep_info.source_inputs + [ctx.file._install_packages, ctx.file._staging],
             transitive = [py_runtime.files],
         ),
         outputs = [packages_dir],
@@ -121,6 +127,10 @@ _pythonic_inner_binary = rule(
         ),
         "_install_packages": attr.label(
             default = "//pythonic/private:install_packages.py",
+            allow_single_file = True,
+        ),
+        "_staging": attr.label(
+            default = "//pythonic/private:staging.py",
             allow_single_file = True,
         ),
         "_launcher_template": attr.label(
