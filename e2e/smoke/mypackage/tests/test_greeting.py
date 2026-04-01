@@ -13,13 +13,18 @@ def test_third_party_metadata():
     assert version == "1.17.0"
 
 
-def test_sys_path():
-    """Verify PYTHONPATH has source roots and site-packages."""
-    import sys
+def test_entry_point_discovery():
+    """Verify entry points are discoverable for source deps via dist-info."""
+    eps = importlib.metadata.entry_points(group="mypackage.plugins")
+    names = {ep.name for ep in eps}
+    assert "greeter" in names, f"greeter entry point not found, got: {names}"
 
-    assert any("mypackage/src" in p for p in sys.path), (
-        f"src root not on sys.path: {sys.path}"
-    )
-    assert any("site-packages" in p for p in sys.path), (
-        f"site-packages not on sys.path: {sys.path}"
-    )
+    ep = next(ep for ep in eps if ep.name == "greeter")
+    fn = ep.load()
+    assert fn("World") == "Hello, World!"
+
+
+def test_source_dep_version_metadata():
+    """Verify importlib.metadata.version works for source deps."""
+    version = importlib.metadata.version("mypackage")
+    assert version == "0.1.0"
