@@ -1,0 +1,25 @@
+load("@rules_pythonic//pythonic:defs.bzl", "pythonic_package", "pythonic_test")
+
+pythonic_package(
+    name = "minimal",
+    srcs = glob(["src/**/*.py"]),
+    pyproject = "pyproject.toml",
+    src_root = "src",
+)
+
+# Filtered install (default): only pytest + transitive deps.
+# six, tomli, and other unrelated wheels are NOT installed.
+pythonic_test(
+    name = "test_filtered_install",
+    srcs = ["tests/test_filtered_install.py"],
+    deps = [":minimal"],
+)
+
+# install_all_wheels: every wheel from requirements.txt is installed,
+# regardless of what minimal declares.
+pythonic_test(
+    name = "test_install_all",
+    srcs = ["tests/test_install_all.py"],
+    install_all_wheels = True,
+    deps = [":minimal"],
+)

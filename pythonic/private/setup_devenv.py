@@ -8,28 +8,11 @@ first-party packages using the same staging mechanism as build_wheel.py.
 
 import argparse
 import json
-import os
 import pathlib
 import shutil
 import subprocess
-import tempfile
 
-from staging import stage_symlink_tree
-
-
-def _stage_wheels_dir(wheel_paths: list[pathlib.Path]) -> pathlib.Path:
-    """Create a temp directory with symlinks to all wheel files.
-
-    uv's --find-links needs a single directory of .whl files. The wheels
-    live in scattered runfiles locations, so we symlink them into one place.
-    This directory is only needed during installation and can be cleaned up.
-    """
-    staged = pathlib.Path(tempfile.mkdtemp(prefix="pythonic_devenv_wheels_"))
-    for whl in wheel_paths:
-        link = staged / whl.name
-        if not link.exists():
-            os.symlink(whl.resolve(), link)
-    return staged
+from staging import stage_symlink_tree, stage_wheels_dir
 
 
 def main() -> None:
@@ -128,7 +111,7 @@ def main() -> None:
         # directory for --find-links. uv needs this to locate build backends
         # during editable installs and to validate dep completeness.
         if third_party_wheel_paths:
-            wheels_dir = _stage_wheels_dir(third_party_wheel_paths)
+            wheels_dir = stage_wheels_dir(third_party_wheel_paths)
             cmd += ["--no-index", "--find-links", str(wheels_dir)]
 
         if constraints:

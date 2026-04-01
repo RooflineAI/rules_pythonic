@@ -1,11 +1,28 @@
-"""Shared utility: stage a symlink tree for pyproject.toml-based operations.
+"""Shared utility: staging helpers for pyproject.toml-based operations.
 
-Used by both build_wheel.py (wheel building) and setup_devenv.py (editable
-installs). Symlinks pyproject.toml and source files into a flat staging
-directory so the PEP 517 build backend can find them.
+Used by build_wheel.py (wheel building), setup_devenv.py (editable installs),
+and install_packages.py (filtered wheel installation). Provides symlink tree
+staging for source layouts and wheel directory staging for --find-links.
 """
 
+import os
 import pathlib
+import tempfile
+
+
+def stage_wheels_dir(wheel_paths: list[pathlib.Path]) -> pathlib.Path:
+    """Symlink wheel files into a single directory for uv --find-links.
+
+    uv's --find-links needs a single directory of .whl files. The wheels
+    live in scattered locations (Bazel runfiles, sandbox paths), so we
+    symlink them into one temp directory.
+    """
+    staged = pathlib.Path(tempfile.mkdtemp(prefix="pythonic_wheels_"))
+    for whl in wheel_paths:
+        link = staged / whl.name
+        if not link.exists():
+            os.symlink(whl.resolve(), link)
+    return staged
 
 
 def stage_symlink_tree(

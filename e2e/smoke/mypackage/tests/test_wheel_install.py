@@ -1,4 +1,5 @@
 import importlib.metadata
+import importlib.util
 import sys
 
 from mypackage.greeting import hello

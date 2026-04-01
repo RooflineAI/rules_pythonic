@@ -16,6 +16,8 @@ import subprocess
 import sys
 import tomllib
 
+from staging import stage_wheels_dir
+
 _HARDLINK_SAMPLE_SIZE = 5
 
 
@@ -243,11 +245,19 @@ def install_packages(
     first_party_packages: list[str],
     first_party_wheel_dirs: list[str],
     extras: list[str],
+    install_all: bool = False,
 ) -> None:
-    """Install third-party and first-party wheels into a flat target directory."""
+    """Install third-party and first-party wheels into a flat target directory.
+
+    Two modes:
+    - install_all=True: install every provided wheel with --no-deps (legacy).
+    - install_all=False (default): resolve only the transitive closure of
+      declared deps from the available wheels via uv.
+    """
     target_dir = pathlib.Path(output_dir)
     cache_dir = _require_uv_cache_dir()
 
+    # Validates deps and globs first-party wheel dirs.
     wheels_to_install = resolve_wheels(
         wheel_files,
         pyproject_paths,
@@ -257,30 +267,51 @@ def install_packages(
     )
 
     target_dir.mkdir(parents=True, exist_ok=True)
-    if wheels_to_install:
+    if not wheels_to_install:
+        return
+
+    uv_base = [
+        uv_bin,
+        "pip",
+        "install",
+        "--cache-dir",
+        cache_dir,
+        "--target",
+        str(target_dir),
+        "--python",
+        python_bin,
+        "--no-index",
+        "--link-mode=hardlink",
+        "-q",
+    ]
+
+    if install_all:
+        subprocess.check_call(uv_base + ["--no-deps"] + wheels_to_install)
+        verify_hardlinks(target_dir, cache_dir)
+        return
+
+    # Filtered mode: split into first-party wheels (install directly) and
+    # third-party (let uv resolve transitively from package names).
+    fp_wheel_files: set[str] = set()
+    for d in first_party_wheel_dirs:
+        for w in pathlib.Path(d).glob("*.whl"):
+            fp_wheel_files.add(str(w))
+
+    tp_wheel_files = [w for w in wheels_to_install if w not in fp_wheel_files]
+
+    if fp_wheel_files:
+        subprocess.check_call(uv_base + ["--no-deps"] + sorted(fp_wheel_files))
+
+    first_party_names = {normalize_name(p) for p in first_party_packages}
+    package_names = sorted(collect_deps(pyproject_paths, extras) - first_party_names)
+
+    if package_names:
+        find_links_dir = stage_wheels_dir([pathlib.Path(w) for w in tp_wheel_files])
         subprocess.check_call(
-            [
-                uv_bin,
-                "pip",
-                "install",
-                "--cache-dir",
-                cache_dir,
-                "--target",
-                str(target_dir),
-                "--python",
-                python_bin,
-                # --no-deps: pip.parse already resolved the full transitive closure
-                # --no-index: never contact PyPI; only use pre-downloaded wheels
-                # --link-mode=hardlink: near-zero disk overhead when on same filesystem
-                "--no-deps",
-                "--no-index",
-                "--link-mode=hardlink",
-                "-q",
-            ]
-            + wheels_to_install
+            uv_base + ["--find-links", str(find_links_dir)] + package_names
         )
 
-        verify_hardlinks(target_dir, cache_dir)
+    verify_hardlinks(target_dir, cache_dir)
 
 
 def main() -> None:
@@ -317,6 +348,11 @@ def main() -> None:
     parser.add_argument(
         "--extras", nargs="*", default=[], help="Optional dependency groups to include"
     )
+    parser.add_argument(
+        "--install-all",
+        action="store_true",
+        help="Install all provided wheels instead of resolving the minimal set",
+    )
     args = parser.parse_args()
 
     install_packages(
@@ -328,6 +364,7 @@ def main() -> None:
         first_party_packages=args.first_party_packages,
         first_party_wheel_dirs=args.first_party_wheel_dirs,
         extras=args.extras,
+        install_all=args.install_all,
     )
 
 

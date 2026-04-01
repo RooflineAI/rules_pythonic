@@ -78,6 +78,8 @@ def _pythonic_test_impl(ctx):
     for fp_wheel_dir in dep_info.first_party_wheel_dirs:
         args.add("--first-party-wheel-dirs", fp_wheel_dir.path)
     args.add_all("--extras", ctx.attr.extras)
+    if ctx.attr.install_all_wheels:
+        args.add("--install-all")
 
     ctx.actions.run(
         executable = python,
@@ -141,6 +143,7 @@ _pythonic_inner_test = rule(
         "deps": attr.label_list(providers = [PythonicPackageInfo], doc = "pythonic_package or pythonic_files targets."),
         "wheels": attr.label_list(allow_files = True, doc = "Filegroup(s) of @pypi wheel targets."),
         "extras": attr.string_list(doc = "Optional dependency groups from pyproject.toml."),
+        "install_all_wheels": attr.bool(default = False, doc = "Install all provided wheels instead of resolving the minimal set."),
         "main": attr.label(allow_single_file = [".py"], doc = "Python file to run instead of pytest."),
         "main_module": attr.string(doc = "Python module to run via -m instead of pytest."),
         "test_env": attr.string_dict(doc = "Environment variables passed to the test."),
@@ -177,7 +180,7 @@ _pythonic_inner_test = rule(
 # macros resolve in the defining module's repo, not the consumer's.
 # "//:all_wheels" must resolve in the consumer's workspace, which only works
 # when the string literal lives in a def that's expanded in the consumer's BUILD file.
-def pythonic_test(name, wheels = ["//:all_wheels"], extras = ["test"], env = {}, **kwargs):
+def pythonic_test(name, wheels = ["//:all_wheels"], extras = ["test"], env = {}, install_all_wheels = False, **kwargs):
     """Create a Python test target with third-party packages installed via uv.
 
     By default runs pytest. Use main= or main_module= for other runners.
@@ -194,6 +197,9 @@ def pythonic_test(name, wheels = ["//:all_wheels"], extras = ["test"], env = {},
         extras: Optional dependency groups from pyproject.toml. Defaults to ["test"].
         env: Environment variables. Remapped to test_env because Bazel auto-adds
             an 'env' attr on test rules.
+        install_all_wheels: Install all provided wheels instead of resolving the
+            minimal transitive set. Useful for integration tests that need the
+            full environment.
         **kwargs: All other attrs forwarded to the rule (srcs, deps, main,
             main_module, interpreter_args, data, conftest, size, timeout, tags).
     """
@@ -205,5 +211,6 @@ def pythonic_test(name, wheels = ["//:all_wheels"], extras = ["test"], env = {},
         wheels = wheels,
         extras = extras,
         test_env = env,
+        install_all_wheels = install_all_wheels,
         **kwargs
     )
