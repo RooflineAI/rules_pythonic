@@ -3,9 +3,9 @@
 Run with: python -m pytest pythonic/private/tests/
 """
 
-from setup_devenv import _stage_wheels_dir
+from staging import stage_wheels_dir
 
-# --- _stage_wheels_dir ---
+# --- stage_wheels_dir ---
 
 
 class TestStageWheelsDir:
@@ -22,7 +22,7 @@ class TestStageWheelsDir:
         whl_b = dir_b / "pytest-8.3.4-py3-none-any.whl"
         whl_b.touch()
 
-        staged = _stage_wheels_dir([whl_a, whl_b])
+        staged = stage_wheels_dir([whl_a, whl_b])
 
         assert (staged / "six-1.17.0-py3-none-any.whl").is_symlink()
         assert (staged / "pytest-8.3.4-py3-none-any.whl").is_symlink()
@@ -41,7 +41,7 @@ class TestStageWheelsDir:
         whl_b = dir_b / "six-1.17.0-py3-none-any.whl"
         whl_b.touch()
 
-        staged = _stage_wheels_dir([whl_a, whl_b])
+        staged = stage_wheels_dir([whl_a, whl_b])
 
         links = list(staged.iterdir())
         assert len(links) == 1
@@ -49,5 +49,5 @@ class TestStageWheelsDir:
 
     def test_empty_list(self):
         """Empty input produces an empty directory."""
-        staged = _stage_wheels_dir([])
+        staged = stage_wheels_dir([])
         assert list(staged.iterdir()) == []

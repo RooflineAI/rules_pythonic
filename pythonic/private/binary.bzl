@@ -50,6 +50,8 @@ def _pythonic_binary_impl(ctx):
     for fp_wheel_dir in dep_info.first_party_wheel_dirs:
         args.add("--first-party-wheel-dirs", fp_wheel_dir.path)
     args.add_all("--extras", ctx.attr.extras)
+    if ctx.attr.install_all_wheels:
+        args.add("--install-all")
 
     ctx.actions.run(
         executable = python,
@@ -106,6 +108,7 @@ _pythonic_inner_binary = rule(
         "deps": attr.label_list(providers = [PythonicPackageInfo], doc = "pythonic_package or pythonic_files targets."),
         "wheels": attr.label_list(allow_files = True, doc = "Filegroup(s) of @pypi wheel targets."),
         "extras": attr.string_list(doc = "Optional dependency groups from pyproject.toml."),
+        "install_all_wheels": attr.bool(default = False, doc = "Install all provided wheels instead of resolving the minimal set."),
         "main": attr.label(allow_single_file = [".py"], doc = "Python file to run as entry point."),
         "main_module": attr.string(doc = "Python module to run via -m."),
         "env": attr.string_dict(doc = "Environment variables passed to the binary."),
@@ -131,7 +134,7 @@ _pythonic_inner_binary = rule(
     toolchains = [_PY_TOOLCHAIN],
 )
 
-def pythonic_binary(name, main = None, main_module = None, wheels = ["//:all_wheels"], extras = [], env = {}, **kwargs):
+def pythonic_binary(name, main = None, main_module = None, wheels = ["//:all_wheels"], extras = [], env = {}, install_all_wheels = False, **kwargs):
     """Create an executable Python target with third-party packages installed via uv.
 
     Exactly one of main or main_module must be provided.
@@ -143,6 +146,8 @@ def pythonic_binary(name, main = None, main_module = None, wheels = ["//:all_whe
         wheels: Labels to @pypi wheel filegroups. Defaults to ["//:all_wheels"].
         extras: Optional dependency groups from pyproject.toml.
         env: Environment variables passed to the binary.
+        install_all_wheels: Install all provided wheels instead of resolving the
+            minimal transitive set.
         **kwargs: All other attrs forwarded to the rule (srcs, deps,
             interpreter_args, data, size, timeout, tags).
     """
@@ -158,5 +163,6 @@ def pythonic_binary(name, main = None, main_module = None, wheels = ["//:all_whe
         wheels = wheels,
         extras = extras,
         env = env,
+        install_all_wheels = install_all_wheels,
         **kwargs
     )
