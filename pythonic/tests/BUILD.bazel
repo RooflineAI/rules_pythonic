@@ -1,1 +1,5 @@
 # Starlark unit tests for rules_pythonic
+
+load(":common_tests.bzl", "common_test_suite")
+
+common_test_suite(name = "common_tests")
