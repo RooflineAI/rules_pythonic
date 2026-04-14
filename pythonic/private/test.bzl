@@ -106,6 +106,11 @@ def _pythonic_test_impl(ctx):
         execution_requirements = {"no-remote-exec": ""},
     )
 
+    expanded_env = {
+        env_key: ctx.expand_location(env_value, targets = ctx.attr.data)
+        for env_key, env_value in ctx.attr.test_env.items()
+    }
+
     launcher = ctx.actions.declare_file(ctx.label.name + ".sh")
     ctx.actions.expand_template(
         template = ctx.file._launcher_template,
@@ -114,7 +119,7 @@ def _pythonic_test_impl(ctx):
             "{{PYTHON_TOOLCHAIN}}": rlocation_path(ctx, python),
             "{{PACKAGES_DIR}}": rlocation_path(ctx, packages_dir),
             "{{FIRST_PARTY_PYTHONPATH}}": build_pythonpath(ctx, dep_info.src_roots),
-            "{{PYTHON_ENV}}": build_env_exports(ctx.attr.test_env),
+            "{{PYTHON_ENV}}": build_env_exports(expanded_env),
             "{{INTERPRETER_ARGS}}": " ".join(ctx.attr.interpreter_args),
             "{{EXEC_CMD}}": _build_exec_cmd(ctx),
         },
