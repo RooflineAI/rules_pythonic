@@ -111,6 +111,32 @@ regenerate the lockfile (e.g. `uv pip compile --all-packages -o requirements.txt
 Bazel picks up the change on next build — `pip.parse` re-evaluates the
 repo rule when `requirements.txt` changes.
 
+## Compared with other rulesets
+
+Every Bazel Python ruleset answers the same four questions: where the lock
+comes from, where a target declares its third-party deps, who installs the
+wheels, and what the interpreter sees at run time. Status as of October 2026.
+
+|                              | rules_python                                                  | aspect_rules_py 1.x                          | aspect_rules_py 2.0 `//uv`                        | rules_pycross                                                                          | rules_uv                                        | rules_pythonic                                                                         |
+| ---------------------------- | ------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Version                      | 2.4.5                                                         | 1.13.0                                       | 2.0.0-alpha.10                                    | 2.0.1                                                                                  | 0.89.2 (Dec 2025)                               | 0.0.2                                                                                  |
+| Scope                        | Toolchains, `pip.parse`, `py_*` rules                         | `py_*` and venvs on top of rules_python deps | `pip.parse` replacement plus `py_*`               | Third-party deps only (`pycross_wheel_library`)                                        | Lock and venv helpers only                      | `py_*` equivalents plus an install layer on top of `pip.parse`                         |
+| Lock input                   | `requirements.txt`; `uv.lock` via `lockfiles` since 2.4       | Inherited from rules_python                  | `uv.lock`                                         | uv, PDM, Poetry, `pylock.toml`                                                         | Writes `requirements.txt` with `uv pip compile` | `requirements.txt` through `pip.parse`, validated against `pyproject.toml`             |
+| Third-party deps declared in | BUILD (`@pypi//pkg`)                                          | BUILD                                        | BUILD, PEP 735 dependency groups                  | BUILD                                                                                  | n/a                                             | `pyproject.toml` only                                                                  |
+| Wheel fetch and install      | One repository rule per wheel                                 | Inherited                                    | Bazel downloader, lazy `whl_install` build action | `http_file` plus build action                                                          | n/a                                             | `pip.parse` repos, then `uv pip install --target` into one flat TreeArtifact           |
+| sdist builds                 | Repository time, not hermetic                                 | Inherited                                    | Build action with hermetic toolchains             | Build action: setuptools, meson, cmake, maturin, PEP 517                               | None                                            | None, wheels from `@pypi` only                                                         |
+| Run-time layout              | venv by default since 2.0, else runfiles and `PyInfo.imports` | venv assembled at run time by a Rust tool    | venv built at build time                          | `py_library` consumed by rules_python                                                  | venv for IDE use                                | `PYTHONPATH` with first-party roots before one flat package dir, no venv               |
+| Cross-build                  | Per-platform requirements files and `select()`                | Inherited                                    | `--platforms`, libc and version flags             | `@platforms` constraints mapped to PEP 508 markers, uv conflicts for torch CPU vs CUDA | One `pip_compile` per platform                  | Host platform only                                                                     |
+| Remote execution             | Yes                                                           | Yes                                          | Yes                                               | Yes                                                                                    | n/a                                             | Install action is `no-remote-exec`, needs a writable uv cache on the output filesystem |
+| Namespace packages           | Shims generated by `pip.parse`                                | Merge at venv creation                       | venv                                              | venv or `.pth`                                                                         | n/a                                             | Flat directory, PEP 420                                                                |
+
+rules_pythonic shares the thesis of `aspect_rules_py//uv` (let uv decide) but
+applies it one layer lower: uv runs at install time inside a build action,
+not at lock time inside a module extension. That keeps the rules small and
+BUILD files readable, and it costs cross-builds, sdists and remote execution
+of the install step. Pick `//uv` or rules_pycross when those matter; pick
+rules_pythonic when the host-only, wheels-only case is the whole problem.
+
 ## Setup
 
 Requires Bazel 8+. Add to `MODULE.bazel`:
